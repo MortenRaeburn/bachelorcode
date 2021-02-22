@@ -1,5 +1,9 @@
 package libauth
 
+const (
+	stub = -1
+)
+
 // Owner ???
 type Owner interface {
 	Signer() *Signer
@@ -7,10 +11,11 @@ type Owner interface {
 
 // Client ???
 type Client interface{
-	Verifier() *Verifier	// Verifier ???
-	Con() *Con				// Con ???
-	Digest() *Digest		// Digest ???
-	Update(digest *Digest)	// Update ???
+	Verifier() *Verifier				// Verifier ???
+	Con() *Con							// Con ???
+	Digest() *Digest					// Digest ???
+	Update(digest *Digest)				// Update ???
+	Query(query *Query) (bool, *Resp)	// Query ???
 }
 
 // Server ???
@@ -34,12 +39,12 @@ type Authenticator interface {
 
 // Signer ???
 type Signer interface {
-	Sign(data *Data) *Resp // Sign ???
+	Sign(data *Data) *Data // Sign ???
 }
 
 // Con ???
 type Con interface{
-	Query(query *Query) // Handle ???
+	Query(query *Query) *Resp // Handle ???
 }
 
 // QType ???
@@ -48,9 +53,9 @@ type QType int
 const ()
 
 // Query ???
-type Query interface {
-	Type() QType      // Type ???
-	Data() interface{} // Data ???
+type Query struct {
+	Type QType       // Type ???
+	Data interface{} // Data ???
 }
 
 // VOType ???
@@ -59,9 +64,9 @@ type VOType int
 const ()
 
 // VO ???
-type VO interface {
-	Type() VOType      // Type ???
-	Data() interface{} // Data ???
+type VO struct {
+	Type VOType      // Type ???
+	Data interface{} // Data ???
 }
 
 // RespType ???
@@ -70,9 +75,9 @@ type RespType int
 const ()
 
 // Resp ???
-type Resp interface {
-	Type() RespType      // Type ???
-	Data() interface{} // Data ???
+type Resp struct {
+	Type RespType       // Type ???
+	Data interface{} // Data ???
 }
 
 // DigestType ???
@@ -81,9 +86,9 @@ type DigestType int
 const ()
 
 // Digest ???
-type Digest interface {
-	Type() DigestType      // Type ???
-	Data() interface{} // Data ???
+type Digest struct {
+	Type DigestType       // Type ???
+	Data interface{} // Data ???
 }
 
 // DataType ???
@@ -92,7 +97,7 @@ type DataType int
 const ()
 
 // Data ???
-type Data interface {
-	Type() DataType      // Type ???
-	Data() interface{} // Data ???
+type Data struct {
+	Type DataType    // Type ???
+	Data interface{} // Data ???
 }
