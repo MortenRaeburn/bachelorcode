@@ -1,73 +1,69 @@
 package bplus
 
 import (
-	"fmt"
 	"sort"
-
-	"github.com/golang-collections/collections/tree/master/stack"
 )
 
-// Btree ???
+// Bptree ???
 type Bptree struct {
 	Root   *Node
 	Fanout int
-	Depth  int //for printing
 }
 
 // Node ???
 type Node struct {
-	Key        int
-	Hash       []byte
-	Value      int
-	Childs     map[int]*Node
-	Sib        *Node
-	Entries    map[int]int
-	Discovered bool //for printing
-	Depth      int  //for printing
+	Leaf    bool
+	Ks      []int
+	Ps      []*Node
+	Hash    []byte
+	Value   int
+	Sib     *Node
+	Entries []int
 }
 
-// ??? elems should be entries
+func max(x int, y int) int {
+	if x > y {
+		return x
+	}
+
+	return y
+}
+
 // NewTree ???
+// ??? Needs a certain amount of elements to work - around fanout
+// ??? elems should be entries
 func NewTree(elems []int, fanout int) (*Bptree, error) {
 	sort.Ints(elems)
 
 	roots := make([]*Node, 0)
 
-	for i := 0; i < len(elems); i += fanout - 1 {
-		n := new(Node)
-		n.Key = elems[i]
-		n.Entries = make(map[int]int)
+	lastChunkLen := len(elems) - (fanout - 1)
 
-		for j := 0; j < fanout-1; j++ {
-			n.Entries[elems[i+j]] = elems[i+j]
-		}
-
-		if len(roots) != 0 {
-			roots[i/fanout].Sib = n
-		}
-
+	for i := 0; i < lastChunkLen; i += fanout / 2 {
+		n := createLeaf(elems, i, fanout/2, roots)
 		roots = append(roots, n)
 	}
+
+	n := createLeaf(elems, max(lastChunkLen, 0), fanout-1, roots)
+	roots = append(roots, n)
 
 	for len(roots) != 1 {
 		temp := make([]*Node, 0)
 
-		for i := 0; i < len(roots); i += fanout {
-			n := new(Node)
-			n.Key = roots[i+1].Key
-			n.Childs = make(map[int]*Node)
+		lastChunkLen := 0
 
-			for j := 0; j < fanout; j++ {
-				if i+j >= len(roots) {
-					break
-				}
-
-				n.Childs[roots[i+j].Key] = roots[i+j]
-			}
-
-			temp = append(temp, n)
-
+		if len(roots) > fanout {
+			lastChunkLen = len(roots) - fanout
+			lastChunkLen = lastChunkLen + lastChunkLen%((fanout+1)/2)
 		}
+
+		for i := 0; i < lastChunkLen; i += (fanout + 1) / 2 {
+			n := createInternal(roots, i, (fanout+1)/2)
+			temp = append(temp, n)
+		}
+
+		n := createInternal(roots, lastChunkLen, len(roots)-lastChunkLen)
+		temp = append(temp, n)
 
 		roots = temp
 
@@ -80,34 +76,73 @@ func NewTree(elems []int, fanout int) (*Bptree, error) {
 	return t, nil
 }
 
-//Print ???
-func (t *Bptree) Print() {
-	fmt.Println("Printing Tree...")
-	Iterate(t.Root, 0)
-}
+func createInternal(roots []*Node, i int, amount int) *Node {
+	n := new(Node)
+	n.Ks = make([]int, 0)
+	n.Ps = make([]*Node, 0)
 
-//Iterate ???
-func Iterate(n *Node, depth int) {
-	S := stack.New()
-	S.Push(n)
-	for S.Len() > 0 {
-		v := S.Pop()
-
-		for i := 0; i < v.Depth-depth; i++ {
-			print("\t") //tabs?
-		}
-
-		allKeys := ""
-
-		//TODO
-
-		print("└──" + allKeys)
-
-		if !v.Discovered {
-			v.Discovered = true
-			for c := range v.Childs {
-				S.push(c)
-			}
-		}
+	for j := 0; j < amount-1; j++ {
+		n.Ps = append(n.Ps, roots[i+j])
+		n.Ks = append(n.Ks, roots[i+j+1].Ks[0])
 	}
+
+	n.Ps = append(n.Ps, roots[i+amount-1])
+
+	return n
 }
+
+func createLeaf(elems []int, i int, amount int, roots []*Node) *Node {
+	n := new(Node)
+	n.Entries = make([]int, 0)
+	n.Ks = make([]int, 0)
+	n.Leaf = true
+
+	for j := 0; j < amount; j++ {
+		n.Ks = append(n.Ks, elems[i+j])
+		n.Entries = append(n.Entries, elems[i+j])
+	}
+
+	if len(roots) != 0 {
+		roots[len(roots)-1].Sib = n
+	}
+	return n
+}
+
+// Print ???
+// func (t *Bptree) Print() {
+// 	fmt.Println("Printing Tree...")
+// 	Iterate(t.Root, 0)
+// }
+
+// //Iterate ???
+// // TODO: need find a way to sort kids by key, since it appears in randomized order
+// func Iterate(n *Node, lvl int) {
+// 	var keys []int
+
+// 	for i := 0; i < lvl; i++ {
+// 		fmt.Print("     ")
+// 	}
+
+// 	fmt.Print("├──")
+
+// 	kids := n.Childs //needs to be sorted by key somehow
+
+// 	if kids == nil {
+// 		for _, e := range n.Entries {
+// 			fmt.Println(":", e)
+// 		}
+// 		return
+// 	}
+
+// 	for i := range kids {
+// 		keys = append(keys, i)
+// 	}
+
+// 	sort.Ints(keys) //maybe unecessary
+
+// 	fmt.Println(keys[1:])
+
+// 	for c := range kids {
+// 		Iterate(kids[c], lvl+1)
+// 	}
+// }
