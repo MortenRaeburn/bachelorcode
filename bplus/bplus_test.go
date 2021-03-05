@@ -19,12 +19,12 @@ func TestPositive(t *testing.T) {
 	testStartLabel(t)
 	defer testEndLabel()
 
-	data := []int{1, 2, 3, 4, 5, 6}
+	//data := []int{1, 2, 3, 4, 5, 6}
 
-	tree, _ := NewTree(data, 3)
+	//tree, _ := NewTree(data, 3)
 
 	// ???
-	_ = tree
+	//_ = tree
 	fmt.Println("???")
 
 	// tree.Print()
@@ -33,15 +33,13 @@ func TestPositive(t *testing.T) {
 
 }
 
-// func TestPrinting(t *testing.T) {
-// 	testStartLabel(t)
-// 	defer testEndLabel()
+func TestPrinting(t *testing.T) {
+	testStartLabel(t)
+	defer testEndLabel()
 
-// 	data := []int{1, 3, 5, 7}
-// 	//data := []int{1, 3, 5, 7, 9, 11, 13, 15, 17} //fanout = 3
+	data := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 100, 34, 29, 2} //fanout = 3
 
-// 	tree, _ := NewTree(data, 3)
+	tree, _ := NewTree(data, 3)
 
-// 	tree.Print()
-
-// }
+	fmt.Println(tree)
+}

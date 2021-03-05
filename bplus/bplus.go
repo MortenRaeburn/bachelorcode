@@ -1,6 +1,7 @@
 package bplus
 
 import (
+	"fmt"
 	"sort"
 )
 
@@ -16,7 +17,7 @@ type Node struct {
 	Ks      []int
 	Ps      []*Node
 	Hash    []byte
-	Value   int
+	Value   int //aggregate value
 	Sib     *Node
 	Entries []int
 }
@@ -32,6 +33,7 @@ func max(x int, y int) int {
 // NewTree ???
 // ??? Needs a certain amount of elements to work - around fanout
 // ??? elems should be entries
+//TODO : compute Hash and Aggregate value of each node
 func NewTree(elems []int, fanout int) (*Bptree, error) {
 	sort.Ints(elems)
 
@@ -108,41 +110,39 @@ func createLeaf(elems []int, i int, amount int, roots []*Node) *Node {
 	return n
 }
 
-// Print ???
-// func (t *Bptree) Print() {
-// 	fmt.Println("Printing Tree...")
-// 	Iterate(t.Root, 0)
-// }
+//Print ???
+func (t *Bptree) String() string {
+	fmt.Println("Printing Tree...")
+	return Iterate(t.Root, 0, "")
+}
 
-// //Iterate ???
-// // TODO: need find a way to sort kids by key, since it appears in randomized order
-// func Iterate(n *Node, lvl int) {
-// 	var keys []int
+//for printing of tree
+const (
+	spaces = "     "
+	branch = "├──"
+)
 
-// 	for i := 0; i < lvl; i++ {
-// 		fmt.Print("     ")
-// 	}
+//Iterate ???
+func Iterate(n *Node, lvl int, ID string) string {
 
-// 	fmt.Print("├──")
+	for i := 0; i < lvl; i++ {
+		ID = ID + fmt.Sprint(spaces)
+	}
 
-// 	kids := n.Childs //needs to be sorted by key somehow
+	ID = ID + fmt.Sprint(branch)
 
-// 	if kids == nil {
-// 		for _, e := range n.Entries {
-// 			fmt.Println(":", e)
-// 		}
-// 		return
-// 	}
+	if n.Leaf {
+		ID = ID + fmt.Sprintln(":", n.Entries)
+		return ID
+	}
 
-// 	for i := range kids {
-// 		keys = append(keys, i)
-// 	}
+	Ps := n.Ps
+	Ks := n.Ks
 
-// 	sort.Ints(keys) //maybe unecessary
+	ID = ID + fmt.Sprintln(Ks)
 
-// 	fmt.Println(keys[1:])
-
-// 	for c := range kids {
-// 		Iterate(kids[c], lvl+1)
-// 	}
-// }
+	for _, c := range Ps {
+		ID = Iterate(c, lvl+1, ID)
+	}
+	return ID
+}
