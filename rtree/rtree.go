@@ -48,28 +48,18 @@ func NewTree(elems [][2]int, fanout int) (*Rtree, error) {
 
 	roots := make([]*Node, 0)
 
-	lastChunkLen := len(elems) - fanout
-
-	for i := 0; i < lastChunkLen; i += fanout {
-		n := createLeaf(elems, i, fanout, roots)
+	for i := 0; i < len(elems); i += fanout {
+		n := createLeaf(elems, i, min(fanout, len(elems)-i), roots)
 		roots = append(roots, n)
 	}
-
-	n := createLeaf(elems, max(lastChunkLen, 0), fanout, roots)
-	roots = append(roots, n)
 
 	for len(roots) != 1 {
 		temp := make([]*Node, 0)
 
-		lastChunkLen := len(roots) - fanout
-
-		for i := 0; i < lastChunkLen; i += fanout {
-			n := createInternal(roots, i, fanout)
+		for i := 0; i < len(roots); i += fanout {
+			n := createInternal(roots, i, min(fanout, len(roots)))
 			temp = append(temp, n)
 		}
-
-		n := createInternal(roots, max(lastChunkLen, 0), len(roots)-lastChunkLen)
-		temp = append(temp, n)
 
 		roots = temp
 
@@ -88,7 +78,7 @@ func createInternal(roots []*Node, i int, amount int) *Node {
 	n.Ps = make([]*Node, 0)
 
 	for j := 0; j < amount; j++ {
-		p := [4]int{}
+		p := roots[i+j].Ks[0]
 
 		for _, k := range roots[i+j].Ks {
 			p[0] = min(p[0], k[0])
@@ -153,13 +143,13 @@ func Iterate(n *Node, lvl int, ID string) string {
 	Ps := n.Ps
 	Ks := n.Ks
 
-	for k := range Ks {	
+	for k := range Ks {
 		ID += fmt.Sprintln(k)
 	}
 
 	for _, c := range Ps {
 		ID = Iterate(c, lvl+1, ID)
 	}
-	
+
 	return ID
 }

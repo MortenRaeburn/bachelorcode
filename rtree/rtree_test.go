@@ -21,7 +21,12 @@ func TestPositive(t *testing.T) {
 
 	data := [][2]int{
 		[2]int{1, 2},
-		[2]int{1, 2},
+		[2]int{3, 4},
+		[2]int{5, 6},
+		[2]int{7, 8},
+		[2]int{9, 10},
+		[2]int{11, 12},
+		[2]int{13, 14},
 	}
 
 	fmt.Println("???")
