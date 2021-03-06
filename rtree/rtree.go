@@ -57,7 +57,7 @@ func NewTree(elems [][2]int, fanout int) (*Rtree, error) {
 		temp := make([]*Node, 0)
 
 		for i := 0; i < len(roots); i += fanout {
-			n := createInternal(roots, i, min(fanout, len(roots)))
+			n := createInternal(roots, i, min(fanout, len(roots)-i))
 			temp = append(temp, n)
 		}
 
