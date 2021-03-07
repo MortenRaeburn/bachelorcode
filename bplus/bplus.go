@@ -116,6 +116,37 @@ func (t *Bptree) String() string {
 	return Iterate(t.Root, 0, "")
 }
 
+// Search ???
+func (t *Bptree) Search(k int) *Node {
+	return t.Root.searchAux(k)
+}
+
+func (n *Node) searchAux(k int) *Node {
+	if n.Leaf {
+		for _, kv := range n.Ks {
+			if kv != k {
+				continue
+			}
+			return n
+		}
+
+		return nil
+	}
+
+	for i := range n.Ks {
+		j := len(n.Ks) - 1 - i
+		kv := n.Ks[j]
+
+		if k >= kv {
+			continue
+		}
+
+		return n.Ps[j].searchAux(k)
+	}
+
+	return n.Ps[len(n.Ps)-1]
+}
+
 //for printing of tree
 const (
 	spaces = "     "

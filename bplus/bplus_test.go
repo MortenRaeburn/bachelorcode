@@ -43,3 +43,20 @@ func TestPrinting(t *testing.T) {
 
 	fmt.Println(tree)
 }
+
+func TestSearch(t *testing.T) {
+	testStartLabel(t)
+	defer testEndLabel()
+
+	data := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 100, 34, 29} //fanout = 3
+
+	tree, _ := NewTree(data, 3)
+
+	fmt.Println(tree)
+
+	// debug
+	two := tree.Search(2)
+	fmt.Println(two)
+	ten := tree.Search(10)
+	fmt.Println(ten)
+}
