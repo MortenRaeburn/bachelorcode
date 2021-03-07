@@ -129,26 +129,46 @@ const (
 //Iterate ???
 func Iterate(n *Node, lvl int, ID string) string {
 
-	for i := 0; i < lvl; i++ {
-		ID += fmt.Sprint(spaces)
-	}
-
-	ID += fmt.Sprint(branch)
-
-	if n.Leaf {
-		ID += fmt.Sprintln(":", n.Entries)
-		return ID
-	}
-
 	Ps := n.Ps
 	Ks := n.Ks
 
-	for k := range Ks {
-		ID += fmt.Sprintln(k)
+	addBranch := true
+
+	if n.Leaf {
+		for _, k := range Ks {
+			ID = format(lvl, ID, addBranch)
+			ID += fmt.Sprintln(k[:2])
+			addBranch = false
+		}
+		return ID
+	}
+
+	for _, k := range Ks {
+		ID = format(lvl, ID, addBranch)
+		ID += fmt.Sprint("(")
+		ID += fmt.Sprint(k[:2])
+		ID += fmt.Sprint(",")
+		ID += fmt.Sprint(k[2:])
+		ID += fmt.Sprintln(")")
+		addBranch = false
 	}
 
 	for _, c := range Ps {
 		ID = Iterate(c, lvl+1, ID)
+	}
+
+	return ID
+}
+
+func format(lvl int, ID string, addBranch bool) string {
+	for i := 0; i < lvl; i++ {
+		ID += fmt.Sprint(spaces)
+	}
+
+	if addBranch {
+		ID += fmt.Sprint(branch)
+	} else {
+		ID += fmt.Sprint("   ")
 	}
 
 	return ID
