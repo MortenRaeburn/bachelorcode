@@ -13,7 +13,6 @@ import (
 )
 
 var centerpoint_url string = "http://127.0.0.1:5000/centerpoint"
-var eps float64 = 0.00000001
 
 type center_res struct {
 	L  *line

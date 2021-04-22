@@ -19,7 +19,7 @@ func TestPositive(t *testing.T) {
 	testStartLabel(t)
 	defer testEndLabel()
 
-	data := [][2]int{
+	data := [][2]float64{
 		{1, 2},
 		{3, 4},
 		{5, 6},
@@ -37,7 +37,7 @@ func TestPositive(t *testing.T) {
 	fmt.Println("???")
 	tree, _ := NewTree(data, 3, sumOfSlice, one)
 
-	mcs, sib := tree.AuthCountArea([4]int{15, 1, 20, 20})
+	mcs, sib := tree.AuthCountArea([4]float64{15, 1, 20, 20})
 	_ = mcs
 	_ = sib
 
@@ -51,7 +51,7 @@ func TestCount(t *testing.T) {
 	testStartLabel(t)
 	defer testEndLabel()
 
-	data := [][2]int{
+	data := [][2]float64{
 		{1, 2},
 		{3, 4},
 		{5, 6},

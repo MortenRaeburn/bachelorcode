@@ -2,7 +2,9 @@ package main
 
 import (
 	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 )
@@ -16,7 +18,7 @@ type Rtree struct {
 // Node ???
 type Node struct {
 	Leaf    bool
-	Ks      [][4]int
+	Ks      [][4]float64
 	Ps      []*Node
 	Hash    []byte
 	Value   int
@@ -25,27 +27,11 @@ type Node struct {
 	AggLeaf func(val int) int
 }
 
-func max(x, y int) int {
-	if x > y {
-		return x
-	}
-
-	return y
-}
-
-func min(x, y int) int {
-	if x < y {
-		return x
-	}
-
-	return y
-}
-
 // NewTree ???
 // ??? Needs a certain amount of elements to work - around fanout
 // ??? elems should be entries
 //TODO : compute Hash and Aggregate value of each node
-func NewTree(elems [][2]int, fanout int, agg func(aggs ...int) int, aggLeaf func(val int) int) (*Rtree, error) {
+func NewTree(elems [][2]float64, fanout int, agg func(aggs ...int) int, aggLeaf func(val int) int) (*Rtree, error) {
 	sort.Slice(elems, func(i, j int) bool {
 		return elems[i][0] < elems[j][0]
 	})
@@ -90,7 +76,7 @@ func (n *Node) labelMaker() {
 
 func createInternal(roots []*Node, i int, amount int, agg func(aggs ...int) int) *Node {
 	n := new(Node)
-	n.Ks = [][4]int{}
+	n.Ks = [][4]float64{}
 	n.Ps = []*Node{}
 	n.Agg = agg
 
@@ -98,10 +84,10 @@ func createInternal(roots []*Node, i int, amount int, agg func(aggs ...int) int)
 		p := roots[i+j].Ks[0]
 
 		for _, k := range roots[i+j].Ks {
-			p[0] = min(p[0], k[0])
-			p[1] = max(p[1], k[1])
-			p[2] = max(p[2], k[2])
-			p[3] = min(p[3], k[3])
+			p[0] = math.Min(p[0], k[0])
+			p[1] = math.Max(p[1], k[1])
+			p[2] = math.Max(p[2], k[2])
+			p[3] = math.Min(p[3], k[3])
 		}
 
 		n.Ks = append(n.Ks, p)
@@ -146,14 +132,14 @@ func (n *Node) CalcHash() {
 	n.Value = n.Agg(childVals...)
 }
 
-func createLeaf(elems [][2]int, i int, amount int, roots []*Node, aggLeaf func(val int) int, agg func(vals ...int) int) *Node {
+func createLeaf(elems [][2]float64, i int, amount int, roots []*Node, aggLeaf func(val int) int, agg func(vals ...int) int) *Node {
 	n := new(Node)
-	n.Ks = [][4]int{}
+	n.Ks = [][4]float64{}
 	n.Ps = []*Node{}
 	n.Agg = agg
 
 	for j := 0; j < amount; j++ {
-		p := [4]int{}
+		p := [4]float64{}
 		p[0] = elems[i+j][0]
 		p[1] = elems[i+j][1]
 		p[2] = elems[i+j][0]
@@ -169,7 +155,10 @@ func createLeaf(elems [][2]int, i int, amount int, roots []*Node, aggLeaf func(v
 		hashVal := []byte{}
 
 		for i := range p {
-			hashVal = append(hashVal, []byte(strconv.Itoa(p[i]))...)
+			var buf []byte
+			binary.BigEndian.PutUint64(buf, math.Float64bits(p[i]))
+
+			hashVal = append(hashVal, buf...)
 		}
 
 		hashVal = append(hashVal, []byte(strconv.Itoa(c.Value))...)
@@ -185,11 +174,11 @@ func createLeaf(elems [][2]int, i int, amount int, roots []*Node, aggLeaf func(v
 }
 
 // Search ???
-func (t *Rtree) Search(area [4]int) []*Node {
+func (t *Rtree) Search(area [4]float64) []*Node {
 	return t.Root.searchAux(area)
 }
 
-func (n *Node) searchAux(area [4]int) []*Node {
+func (n *Node) searchAux(area [4]float64) []*Node {
 	acc := []*Node{}
 
 	for i, k := range n.Ks {
@@ -207,16 +196,16 @@ func (n *Node) searchAux(area [4]int) []*Node {
 	return acc
 }
 
-func (t *Rtree) AuthCountPoint(p [2]int) ([]*Node, map[string][]byte) {
-	return t.AuthCountArea([4]int{p[0], p[1], p[0], p[1]})
+func (t *Rtree) AuthCountPoint(p [2]float64) ([]*Node, map[string][]byte) {
+	return t.AuthCountArea([4]float64{p[0], p[1], p[0], p[1]})
 }
 
 // AuthCountArea ???
-func (t *Rtree) AuthCountArea(area [4]int) ([]*Node, map[string][]byte) {
+func (t *Rtree) AuthCountArea(area [4]float64) ([]*Node, map[string][]byte) {
 	return t.Root.authCountAreaAux(area)
 }
 
-func (n *Node) authCountAreaAux(area [4]int) ([]*Node, map[string][]byte) {
+func (n *Node) authCountAreaAux(area [4]float64) ([]*Node, map[string][]byte) {
 	mcs := []*Node{}
 	sib := map[string][]byte{}
 
@@ -280,22 +269,22 @@ func AuthCountVerify(mcs []*Node, sib map[string][]byte, digest []byte) {
 
 }
 
-func intersectsArea(x, y [4]int) bool {
+func intersectsArea(x, y [4]float64) bool {
 	return x[0] < y[2] && x[2] > y[0] && x[3] < y[1] && x[1] > y[3] // Proof by contradiction, any of these cases mean that x and y cannot intersect; so if none exist, then they intersect: https://stackoverflow.com/a/306332
 }
 
-func containsArea(outer, inner [4]int) bool {
+func containsArea(outer, inner [4]float64) bool {
 	return outer[0] <= inner[0] && outer[1] >= inner[1] && outer[2] >= inner[2] && outer[3] <= inner[3]
 }
 
-func intersectsHalfSpace(l *line, r [4]int, sign bool) bool {
+func intersectsHalfSpace(l *line, r [4]float64, sign bool) bool {
 	amount := intersectsHalfSpaceAux(r, l, sign)
 
 	return amount > 0
 
 }
 
-func intersectsHalfSpaceAux(r [4]int, l *line, sign bool) int {
+func intersectsHalfSpaceAux(r [4]float64, l *line, sign bool) int {
 	// TODO correct int to float64 and remove conversion
 	ps := [][2]float64{
 		{float64(r[0]), float64(r[1])},
@@ -309,7 +298,7 @@ func intersectsHalfSpaceAux(r [4]int, l *line, sign bool) int {
 	return len(f)
 }
 
-func containsHalfSpace(l *line, r [4]int, sign bool) bool {
+func containsHalfSpace(l *line, r [4]float64, sign bool) bool {
 	amount := intersectsHalfSpaceAux(r, l, sign)
 
 	return amount == 4
