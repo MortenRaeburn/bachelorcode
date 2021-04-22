@@ -1,4 +1,4 @@
-module github.com/MortenRaeburn/bachelor-code/client-server
+module github.com/MortenRaeburn/bachelorcode/client-server
 
 go 1.15
 

@@ -1,4 +1,4 @@
-module github.com/MortenRaeburn/bachelor-code/bplus
+module github.com/MortenRaeburn/bachelorcode/bplus
 
 go 1.15
 

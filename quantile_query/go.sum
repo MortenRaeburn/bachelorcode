@@ -1,7 +1,0 @@
-github.com/collinglass/bptree v0.0.0-20150421005947-9bfc0de8049e h1:7yPXwlPutGq9GRybCfXBuX/zI6EKXtgCW8I5XDOvJl0=
-github.com/collinglass/bptree v0.0.0-20150421005947-9bfc0de8049e/go.mod h1:GAugteqd9JOsaHsyD0tgA34S76LP53jNcn8jBg2pYXY=
-github.com/golang-collections/collections v0.0.0-20130729185459-604e922904d3 h1:zN2lZNZRflqFyxVaTIU61KNKQ9C0055u9CAfpmqUvo4=
-github.com/golang-collections/collections v0.0.0-20130729185459-604e922904d3/go.mod h1:nPpo7qLxd6XL3hWJG/O60sR8ZKfMCiIoNap5GvD12KU=
-github.com/timtadh/fs2 v0.1.0 h1:a7b3umlB7XbEfsVlIIlA550+wBvjPtzoUUNU3GW8ta0=
-github.com/timtadh/fs2 v0.1.0/go.mod h1:oPHsztYWhP3uWRFJLzph8VIPmE0q6BdFbNumoHfK7zg=
-github.com/timtadh/getopt v1.0.0/go.mod h1:L3EL6YN2G0eIAhYBo9b7SB9d/kEQmdnwthIlMJfj210=

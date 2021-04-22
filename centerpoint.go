@@ -10,22 +10,19 @@ import (
 	"net/http"
 	"sort"
 	"time"
+
+	"github.com/MortenRaeburn/bachelorcode/goutils"
 )
 
 var centerpoint_url string = "http://127.0.0.1:5000/centerpoint"
 var eps float64 = 0.00000001
 
 type center_res struct {
-	L  line
-	U  line
-	R  line
-	D  line
+	L  *goutils.Line
+	U  *goutils.Line
+	R  *goutils.Line
+	D  *goutils.Line
 	PS [][2]float64
-}
-
-type line struct {
-	B float64
-	M float64
 }
 
 func centerpoint(ps [][2]float64) *center_res {
@@ -74,6 +71,27 @@ func main() {
 	center := centerpoint(ps)
 
 	diff(ps, center.PS)
+
+}
+
+func linePoint(l *goutils.Line, x float64) [2]float64 {
+	return [2]float64{x, l.M*x + l.B}
+}
+
+func filter(l *goutils.Line, ps [][2]float64, sign bool) [][2]float64 {
+	filterPs := [][2]float64{}
+
+	for _, p := range ps {
+		lp := linePoint(l, p[0])
+
+		if lp[1] < p[1] != sign {
+			continue
+		}
+
+		filterPs = append(filterPs, lp)
+	}
+
+	return filterPs
 }
 
 func pointsSort(ps [][2]float64) [][2]float64 {

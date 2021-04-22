@@ -193,7 +193,7 @@ func (n *Node) searchAux(area [4]int) []*Node {
 	acc := []*Node{}
 
 	for i, k := range n.Ks {
-		if !intersects(area, k) {
+		if !intersectsArea(area, k) {
 			continue
 		}
 
@@ -207,27 +207,59 @@ func (n *Node) searchAux(area [4]int) []*Node {
 	return acc
 }
 
-// AuthCount ???
-func (t *Rtree) AuthCount(area [4]int) ([]*Node, map[string][]byte) {
-	return t.Root.authCountAux(area)
+// AuthCountArea ???
+func (t *Rtree) AuthCountArea(area [4]int) ([]*Node, map[string][]byte) {
+	return t.Root.authCountAreaAux(area)
 }
 
-func (n *Node) authCountAux(area [4]int) ([]*Node, map[string][]byte) {
+func (n *Node) authCountAreaAux(area [4]int) ([]*Node, map[string][]byte) {
 	mcs := []*Node{}
 	sib := map[string][]byte{}
 
 	for i, k := range n.Ks {
-		if !intersects(area, k) {
+		if !intersectsArea(area, k) {
 			sib[n.Ps[i].Label] = n.Ps[i].Hash
 			continue
 		}
 
-		if contains(area, k) {
+		if containsArea(area, k) {
 			mcs = append(mcs, n.Ps[i])
 			continue
 		}
 
-		cMcs, cSib := n.Ps[i].authCountAux(area)
+		cMcs, cSib := n.Ps[i].authCountAreaAux(area)
+
+		mcs = append(mcs, cMcs...)
+
+		for k, v := range cSib {
+			sib[k] = v
+		}
+	}
+
+	return mcs, sib
+}
+
+// AuthCountLine ???
+func (t *Rtree) AuthCountLine(l *line) ([]*Node, map[string][]byte) {
+	return t.Root.authCountAreaAux(area)
+}
+
+func (n *Node) authCountLineAux(l *line) ([]*Node, map[string][]byte) {
+	mcs := []*Node{}
+	sib := map[string][]byte{}
+
+	for i, k := range n.Ks {
+		if !intersectsArea(area, k) {
+			sib[n.Ps[i].Label] = n.Ps[i].Hash
+			continue
+		}
+
+		if containsArea(area, k) {
+			mcs = append(mcs, n.Ps[i])
+			continue
+		}
+
+		cMcs, cSib := n.Ps[i].authCountAreaAux(area)
 
 		mcs = append(mcs, cMcs...)
 
@@ -244,11 +276,11 @@ func AuthCountVerify(mcs []*Node, sib map[string][]byte, digest []byte) {
 
 }
 
-func intersects(x, y [4]int) bool {
+func intersectsArea(x, y [4]int) bool {
 	return x[0] < y[2] && x[2] > y[0] && x[3] < y[1] && x[1] > y[3] // Proof by contradiction, any of these cases mean that x and y cannot intersect; so if none exist, then they intersect: https://stackoverflow.com/a/306332
 }
 
-func contains(outer, inner [4]int) bool {
+func containsArea(outer, inner [4]int) bool {
 	return outer[0] <= inner[0] && outer[1] >= inner[1] && outer[2] >= inner[2] && outer[3] <= inner[3]
 }
 
