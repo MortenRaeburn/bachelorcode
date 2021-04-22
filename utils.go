@@ -1,6 +1,6 @@
-package goutils
+package main
 
-type Line struct {
+type line struct {
 	B float64
 	M float64
 }

@@ -10,18 +10,16 @@ import (
 	"net/http"
 	"sort"
 	"time"
-
-	"github.com/MortenRaeburn/bachelorcode/goutils"
 )
 
 var centerpoint_url string = "http://127.0.0.1:5000/centerpoint"
 var eps float64 = 0.00000001
 
 type center_res struct {
-	L  *goutils.Line
-	U  *goutils.Line
-	R  *goutils.Line
-	D  *goutils.Line
+	L  *line
+	U  *line
+	R  *line
+	D  *line
 	PS [][2]float64
 }
 
@@ -74,11 +72,11 @@ func main() {
 
 }
 
-func linePoint(l *goutils.Line, x float64) [2]float64 {
+func linePoint(l *line, x float64) [2]float64 {
 	return [2]float64{x, l.M*x + l.B}
 }
 
-func filter(l *goutils.Line, ps [][2]float64, sign bool) [][2]float64 {
+func filter(l *line, ps [][2]float64, sign bool) [][2]float64 {
 	filterPs := [][2]float64{}
 
 	for _, p := range ps {
