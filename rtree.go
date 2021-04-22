@@ -207,6 +207,10 @@ func (n *Node) searchAux(area [4]int) []*Node {
 	return acc
 }
 
+func (t *Rtree) AuthCountPoint(p [2]int) ([]*Node, map[string][]byte) {
+	return t.AuthCountArea([4]int{p[0], p[1], p[0], p[1]})
+}
+
 // AuthCountArea ???
 func (t *Rtree) AuthCountArea(area [4]int) ([]*Node, map[string][]byte) {
 	return t.Root.authCountAreaAux(area)
@@ -240,26 +244,26 @@ func (n *Node) authCountAreaAux(area [4]int) ([]*Node, map[string][]byte) {
 }
 
 // AuthCountLine ???
-func (t *Rtree) AuthCountLine(l *line) ([]*Node, map[string][]byte) {
-	return t.Root.authCountAreaAux(area)
+func (t *Rtree) AuthCountLine(l *line, sign bool) ([]*Node, map[string][]byte) {
+	return t.Root.authCountHalfSpaceAux(l, sign)
 }
 
-func (n *Node) authCountLineAux(l *line) ([]*Node, map[string][]byte) {
+func (n *Node) authCountHalfSpaceAux(l *line, sign bool) ([]*Node, map[string][]byte) {
 	mcs := []*Node{}
 	sib := map[string][]byte{}
 
 	for i, k := range n.Ks {
-		if !intersectsArea(area, k) {
+		if !intersectsHalfSpace(l, k, sign) {
 			sib[n.Ps[i].Label] = n.Ps[i].Hash
 			continue
 		}
 
-		if containsArea(area, k) {
+		if containsHalfSpace(l, k, sign) {
 			mcs = append(mcs, n.Ps[i])
 			continue
 		}
 
-		cMcs, cSib := n.Ps[i].authCountAreaAux(area)
+		cMcs, cSib := n.Ps[i].authCountHalfSpaceAux(l, sign)
 
 		mcs = append(mcs, cMcs...)
 
@@ -282,6 +286,33 @@ func intersectsArea(x, y [4]int) bool {
 
 func containsArea(outer, inner [4]int) bool {
 	return outer[0] <= inner[0] && outer[1] >= inner[1] && outer[2] >= inner[2] && outer[3] <= inner[3]
+}
+
+func intersectsHalfSpace(l *line, r [4]int, sign bool) bool {
+	amount := intersectsHalfSpaceAux(r, l, sign)
+
+	return amount > 0
+
+}
+
+func intersectsHalfSpaceAux(r [4]int, l *line, sign bool) int {
+	// TODO correct int to float64 and remove conversion
+	ps := [][2]float64{
+		{float64(r[0]), float64(r[1])},
+		{float64(r[0]), float64(r[3])},
+		{float64(r[2]), float64(r[1])},
+		{float64(r[2]), float64(r[3])},
+	}
+
+	f := filter(l, ps, sign)
+
+	return len(f)
+}
+
+func containsHalfSpace(l *line, r [4]int, sign bool) bool {
+	amount := intersectsHalfSpaceAux(r, l, sign)
+
+	return amount == 4
 }
 
 //Print ???
