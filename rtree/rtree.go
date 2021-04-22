@@ -1,8 +1,10 @@
 package rtree
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"sort"
+	"strconv"
 )
 
 // Rtree ???
@@ -17,8 +19,10 @@ type Node struct {
 	Ks      [][4]int
 	Ps      []*Node
 	Hash    []byte
-	Value   int //aggregate value
-	Entries []int
+	Value   int
+	Label   string
+	Agg     func(aggs ...int) int
+	AggLeaf func(val int) int
 }
 
 func max(x, y int) int {
@@ -41,29 +45,31 @@ func min(x, y int) int {
 // ??? Needs a certain amount of elements to work - around fanout
 // ??? elems should be entries
 //TODO : compute Hash and Aggregate value of each node
-func NewTree(elems [][2]int, fanout int) (*Rtree, error) {
+func NewTree(elems [][2]int, fanout int, agg func(aggs ...int) int, aggLeaf func(val int) int) (*Rtree, error) {
 	sort.Slice(elems, func(i, j int) bool {
 		return elems[i][0] < elems[j][0]
 	})
 
-	roots := make([]*Node, 0)
+	roots := []*Node{}
 
 	for i := 0; i < len(elems); i += fanout {
-		n := createLeaf(elems, i, min(fanout, len(elems)-i), roots)
+		n := createLeaf(elems, i, min(fanout, len(elems)-i), roots, aggLeaf, agg)
 		roots = append(roots, n)
 	}
 
 	for len(roots) != 1 {
-		temp := make([]*Node, 0)
+		temp := []*Node{}
 
 		for i := 0; i < len(roots); i += fanout {
-			n := createInternal(roots, i, min(fanout, len(roots)-i))
+			n := createInternal(roots, i, min(fanout, len(roots)-i), agg)
 			temp = append(temp, n)
 		}
 
 		roots = temp
 
 	}
+
+	roots[0].labelMaker()
 
 	t := new(Rtree)
 	t.Fanout = fanout
@@ -72,10 +78,21 @@ func NewTree(elems [][2]int, fanout int) (*Rtree, error) {
 	return t, nil
 }
 
-func createInternal(roots []*Node, i int, amount int) *Node {
+// Add labels recursively
+func (n *Node) labelMaker() {
+	for i, c := range n.Ps {
+		label := n.Label + strconv.Itoa(i)
+		c.Label = label
+
+		c.labelMaker()
+	}
+}
+
+func createInternal(roots []*Node, i int, amount int, agg func(aggs ...int) int) *Node {
 	n := new(Node)
-	n.Ks = make([][4]int, 0)
-	n.Ps = make([]*Node, 0)
+	n.Ks = [][4]int{}
+	n.Ps = []*Node{}
+	n.Agg = agg
 
 	for j := 0; j < amount; j++ {
 		p := roots[i+j].Ks[0]
@@ -91,14 +108,49 @@ func createInternal(roots []*Node, i int, amount int) *Node {
 		n.Ps = append(n.Ps, roots[i+j])
 	}
 
+	n.CalcAgg()
+	n.CalcHash()
+
 	return n
 }
 
-func createLeaf(elems [][2]int, i int, amount int, roots []*Node) *Node {
+func (n *Node) CalcAgg() {
+	childVals := []int{}
+
+	for i := range n.Ps {
+		childVals = append(childVals, n.Ps[i].Value)
+	}
+
+	n.Value = n.Agg(childVals...)
+}
+
+func (n *Node) CalcHash() {
+	childVals := []int{}
+	childHashes := [][]byte{}
+
+	for i := range n.Ps {
+		childVals = append(childVals, n.Ps[i].Value)
+		childHashes = append(childHashes, n.Ps[i].Hash)
+	}
+
+	hashVal := []byte{}
+
+	for i := range childHashes {
+		hashVal = append(hashVal, childHashes[i]...)
+		hashVal = append(hashVal, []byte(strconv.Itoa(childVals[i]))...)
+	}
+
+	hash := sha256.Sum256(hashVal)
+	n.Hash = hash[:]
+
+	n.Value = n.Agg(childVals...)
+}
+
+func createLeaf(elems [][2]int, i int, amount int, roots []*Node, aggLeaf func(val int) int, agg func(vals ...int) int) *Node {
 	n := new(Node)
-	n.Entries = make([]int, 0)
-	n.Ks = make([][4]int, 0)
-	n.Leaf = true
+	n.Ks = [][4]int{}
+	n.Ps = []*Node{}
+	n.Agg = agg
 
 	for j := 0; j < amount; j++ {
 		p := [4]int{}
@@ -106,18 +158,104 @@ func createLeaf(elems [][2]int, i int, amount int, roots []*Node) *Node {
 		p[1] = elems[i+j][1]
 		p[2] = elems[i+j][0]
 		p[3] = elems[i+j][1]
-
 		n.Ks = append(n.Ks, p)
-		n.Entries = append(n.Entries, elems[i+j][0])
+
+		c := new(Node)
+		n.Ps = append(n.Ps, c)
+		c.Leaf = true
+		c.AggLeaf = aggLeaf
+		c.Value = aggLeaf(-69) // TODO Allow for other aggregate values than COUNT
+
+		hashVal := []byte{}
+
+		for i := range p {
+			hashVal = append(hashVal, []byte(strconv.Itoa(p[i]))...)
+		}
+
+		hashVal = append(hashVal, []byte(strconv.Itoa(c.Value))...)
+
+		hash := sha256.Sum256(hashVal)
+		c.Hash = hash[:]
 	}
 
+	n.CalcAgg()
+	n.CalcHash()
+
 	return n
+}
+
+// Search ???
+func (t *Rtree) Search(area [4]int) []*Node {
+	return t.Root.searchAux(area)
+}
+
+func (n *Node) searchAux(area [4]int) []*Node {
+	acc := []*Node{}
+
+	for i, k := range n.Ks {
+		if !intersects(area, k) {
+			continue
+		}
+
+		if n.Leaf {
+			return []*Node{n}
+		}
+
+		acc = append(acc, n.Ps[i].searchAux(area)...)
+	}
+
+	return acc
+}
+
+// AuthCount ???
+func (t *Rtree) AuthCount(area [4]int) ([]*Node, map[string][]byte) {
+	return t.Root.authCountAux(area)
+}
+
+func (n *Node) authCountAux(area [4]int) ([]*Node, map[string][]byte) {
+	mcs := []*Node{}
+	sib := map[string][]byte{}
+
+	for i, k := range n.Ks {
+		if !intersects(area, k) {
+			sib[n.Ps[i].Label] = n.Ps[i].Hash
+			continue
+		}
+
+		if contains(area, k) {
+			mcs = append(mcs, n.Ps[i])
+			continue
+		}
+
+		cMcs, cSib := n.Ps[i].authCountAux(area)
+
+		mcs = append(mcs, cMcs...)
+
+		for k, v := range cSib {
+			sib[k] = v
+		}
+	}
+
+	return mcs, sib
+}
+
+// AuthCountVerify ???
+func AuthCountVerify(mcs []*Node, sib map[string][]byte, digest []byte) {
+
+}
+
+func intersects(x, y [4]int) bool {
+	return x[0] < y[2] && x[2] > y[0] && x[3] < y[1] && x[1] > y[3] // Proof by contradiction, any of these cases mean that x and y cannot intersect; so if none exist, then they intersect: https://stackoverflow.com/a/306332
+}
+
+func contains(outer, inner [4]int) bool {
+	return outer[0] <= inner[0] && outer[1] >= inner[1] && outer[2] >= inner[2] && outer[3] <= inner[3]
 }
 
 //Print ???
 func (t *Rtree) String() string {
 	fmt.Println("Printing Tree...")
-	return Iterate(t.Root, 0, "")
+	return iterate(t.Root, 0, "")
 }
 
 //for printing of tree
@@ -126,8 +264,8 @@ const (
 	branch = "├──"
 )
 
-//Iterate ???
-func Iterate(n *Node, lvl int, ID string) string {
+//iterate ???
+func iterate(n *Node, lvl int, ID string) string {
 
 	Ps := n.Ps
 	Ks := n.Ks
@@ -154,7 +292,7 @@ func Iterate(n *Node, lvl int, ID string) string {
 	}
 
 	for _, c := range Ps {
-		ID = Iterate(c, lvl+1, ID)
+		ID = iterate(c, lvl+1, ID)
 	}
 
 	return ID
