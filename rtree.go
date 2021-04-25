@@ -297,8 +297,8 @@ func (n *Node) authCountHalfSpaceAux(l *line, sign bool) ([]*Node, map[string][]
 }
 
 // AuthCountVerify ???
-func AuthCountVerify(mcs []*Node, sib map[string][]byte, digest []byte) {
-
+func AuthCountVerify(mcs []*Node, sib map[string][]byte, digest []byte) (int, bool) {
+	panic("todo")
 }
 
 func intersectsArea(x, y [4]float64) bool {

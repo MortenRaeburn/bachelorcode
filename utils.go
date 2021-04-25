@@ -40,7 +40,7 @@ func sumOfSlice(i ...int) int {
 }
 
 // dir is in the order L, U, D, and R
-func halfSpaceSign(m float64, dir int) bool {
+func halfSpaceSign(l *line, dir int) bool {
 	signLookup := map[bool]map[int]bool{
 		true: {
 			0: true,
@@ -57,7 +57,7 @@ func halfSpaceSign(m float64, dir int) bool {
 	}
 
 	mPositive := true
-	if m < 0 {
+	if l.M < 0 {
 		mPositive = false
 	}
 
@@ -65,6 +65,16 @@ func halfSpaceSign(m float64, dir int) bool {
 }
 
 type VOCenter struct {
+	Prunes []*VOPrune
+	Final  *VOFinal
+}
+
+type VOPrune struct {
+	L *line
+	U *line
+	D *line
+	R *line
+
 	LMcs, UMcs, DMcs, RMcs []*Node
 	LSib, USib, DSib, RSib map[string][]byte
 
