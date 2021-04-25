@@ -27,11 +27,11 @@ type Node struct {
 	AggLeaf func(val int) int
 }
 
-// NewTree ???
+// NewRTree ???
 // ??? Needs a certain amount of elements to work - around fanout
 // ??? elems should be entries
 //TODO : compute Hash and Aggregate value of each node
-func NewTree(elems [][2]float64, fanout int, agg func(aggs ...int) int, aggLeaf func(val int) int) (*Rtree, error) {
+func NewRTree(elems [][2]float64, fanout int, agg func(aggs ...int) int, aggLeaf func(val int) int) (*Rtree, error) {
 	sort.Slice(elems, func(i, j int) bool {
 		return elems[i][0] < elems[j][0]
 	})
@@ -62,6 +62,38 @@ func NewTree(elems [][2]float64, fanout int, agg func(aggs ...int) int, aggLeaf 
 	t.Root = roots[0]
 
 	return t, nil
+}
+
+func (n *Node) listAux() []*Node {
+	if n.Leaf {
+		return []*Node{n}
+	}
+
+	list := []*Node{}
+
+	for _, c := range n.Ps {
+		list = append(list, c.listAux()...)
+	}
+	return list
+}
+
+func (r *Rtree) List() []*Node {
+	n := r.Root
+	return n.listAux()
+}
+
+func (r *Rtree) AuthCountPoints(ps [][2]float64) ([][]*Node, []map[string][]byte) {
+	pMcss := [][]*Node{}
+	pSibs := []map[string][]byte{}
+
+	for _, p := range ps {
+		mcs, sib := r.AuthCountPoint(p)
+
+		pMcss = append(pMcss, mcs)
+		pSibs = append(pSibs, sib)
+	}
+
+	return pMcss, pSibs
 }
 
 // Add labels recursively
@@ -232,8 +264,8 @@ func (n *Node) authCountAreaAux(area [4]float64) ([]*Node, map[string][]byte) {
 	return mcs, sib
 }
 
-// AuthCountLine ???
-func (t *Rtree) AuthCountLine(l *line, sign bool) ([]*Node, map[string][]byte) {
+// AuthCountHalfSpace ???
+func (t *Rtree) AuthCountHalfSpace(l *line, sign bool) ([]*Node, map[string][]byte) {
 	return t.Root.authCountHalfSpaceAux(l, sign)
 }
 

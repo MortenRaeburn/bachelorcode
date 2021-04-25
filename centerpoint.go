@@ -54,6 +54,10 @@ func centerpoint(ps [][2]float64) *center_res {
 }
 
 func main() {
+	authCenterpoint()
+}
+
+func authCenterpoint() ([]*VOCenter, *VOFinal) {
 	rand.Seed(time.Now().UTC().UnixNano())
 
 	ps := [][2]float64{}
@@ -65,9 +69,63 @@ func main() {
 		ps = append(ps, [2]float64{x, y})
 	}
 
+	rt, err := NewRTree(ps, 3, sumOfSlice, one)
+
+	if err != nil {
+		panic(err)
+	}
+
+	centerVOs := []*VOCenter{}
+
+	for true {
+		vo, newRt, newPs, pruning := prune(ps, rt)
+
+		if !pruning {
+			break
+		}
+
+		centerVOs = append(centerVOs, vo)
+		rt = newRt
+		ps = newPs
+	}
+
+	finalVO := new(VOFinal)
+
+	finalVO.PMcss, finalVO.PSibs = rt.AuthCountPoints(ps)
+
+	return centerVOs, finalVO
+
+}
+
+func prune(ps [][2]float64, rt *Rtree) (*VOCenter, *Rtree, [][2]float64, bool) {
 	center := centerpoint(ps)
 
-	diff(ps, center.PS)
+	delPs, _ := diff(ps, center.PS)
+
+	if len(delPs) == 0 {
+		return nil, nil, ps, false
+	}
+
+	lSign := halfSpaceSign(center.L.M, 0)
+	uSign := halfSpaceSign(center.U.M, 1)
+	dSign := halfSpaceSign(center.D.M, 2)
+	rSign := halfSpaceSign(center.R.M, 3)
+
+	vo := new(VOCenter)
+	vo.LMcs, vo.LSib = rt.AuthCountHalfSpace(center.L, lSign)
+	vo.UMcs, vo.USib = rt.AuthCountHalfSpace(center.U, uSign)
+	vo.DMcs, vo.DSib = rt.AuthCountHalfSpace(center.D, dSign)
+	vo.RMcs, vo.RSib = rt.AuthCountHalfSpace(center.R, rSign)
+
+	vo.PMcss, vo.PSibs = rt.AuthCountPoints(delPs)
+
+	newRt, err := NewRTree(center.PS, rt.Fanout, rt.Root.Agg, rt.Root.AggLeaf)
+
+	if err != nil {
+		panic(err)
+	}
+
+	return vo, newRt, center.PS, true
 
 }
 
@@ -121,16 +179,19 @@ func pointSearch(ps [][2]float64, x [2]float64) (int, bool) {
 }
 
 func diff(ps1, ps2 [][2]float64) ([][2]float64, [][2]float64) {
-	for i, p := range ps1 {
-		j, found := pointSearch(ps2, p)
+	newPs1 := ps1 // TODO May need actual deep cloning depending on slice behavior
+	newPs2 := ps2
+
+	for i, p := range newPs1 {
+		j, found := pointSearch(newPs2, p)
 
 		if !found {
 			continue
 		}
 
-		ps1 = append(ps1[:i], ps1[i+1:]...)
-		ps2 = append(ps2[:j], ps2[j+1:]...)
+		newPs1 = append(newPs1[:i], newPs1[i+1:]...)
+		newPs2 = append(newPs2[:j], newPs2[j+1:]...)
 	}
 
-	return ps1, ps2
+	return newPs1, newPs2
 }

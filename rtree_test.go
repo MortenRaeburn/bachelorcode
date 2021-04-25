@@ -35,7 +35,7 @@ func TestPositive(t *testing.T) {
 	}
 
 	fmt.Println("???")
-	tree, _ := NewTree(data, 3, sumOfSlice, one)
+	tree, _ := NewRTree(data, 3, sumOfSlice, one)
 
 	mcs, sib := tree.AuthCountArea([4]float64{15, 1, 20, 20})
 	_ = mcs
@@ -66,25 +66,11 @@ func TestCount(t *testing.T) {
 		{23, 24},
 	}
 
-	tree, _ := NewTree(data, 3, sumOfSlice, one)
+	tree, _ := NewRTree(data, 3, sumOfSlice, one)
 	_ = tree
 	if tree.Root.Value != 12 {
 		t.Errorf("TestCount failed. Expected 12, but got %d", tree.Root.Value)
 	}
 }
 
-func identity(i int) int {
-	return i
-}
 
-func one(i int) int {
-	return 1
-}
-
-func sumOfSlice(i ...int) int {
-	res := 0
-	for _, s := range i {
-		res += s
-	}
-	return res
-}
