@@ -82,18 +82,14 @@ func (r *Rtree) List() []*Node {
 	return n.listAux()
 }
 
-func (r *Rtree) AuthCountPoints(ps [][2]float64) ([][]*Node, []map[string][]byte) {
-	pMcss := [][]*Node{}
-	pSibs := []map[string][]byte{}
+func (r *Rtree) AuthCountPoints(ps [][2]float64) []*VOCount {
+	vos := []*VOCount{}
 
 	for _, p := range ps {
-		mcs, sib := r.AuthCountPoint(p)
-
-		pMcss = append(pMcss, mcs)
-		pSibs = append(pSibs, sib)
+		vos = append(vos, r.AuthCountPoint(p))
 	}
 
-	return pMcss, pSibs
+	return vos
 }
 
 // Add labels recursively
@@ -228,76 +224,72 @@ func (n *Node) searchAux(area [4]float64) []*Node {
 	return acc
 }
 
-func (t *Rtree) AuthCountPoint(p [2]float64) ([]*Node, map[string][]byte) {
+func (t *Rtree) AuthCountPoint(p [2]float64) *VOCount {
 	return t.AuthCountArea([4]float64{p[0], p[1], p[0], p[1]})
 }
 
 // AuthCountArea ???
-func (t *Rtree) AuthCountArea(area [4]float64) ([]*Node, map[string][]byte) {
+func (t *Rtree) AuthCountArea(area [4]float64) *VOCount {
 	return t.Root.authCountAreaAux(area)
 }
 
-func (n *Node) authCountAreaAux(area [4]float64) ([]*Node, map[string][]byte) {
-	mcs := []*Node{}
-	sib := map[string][]byte{}
+func (n *Node) authCountAreaAux(area [4]float64) *VOCount {
+	vo := new(VOCount)
+	vo.Mcs = []*Node{}
+	vo.Sib = []*Node{}
 
 	for i, k := range n.Ks {
 		if !intersectsArea(area, k) {
-			sib[n.Ps[i].Label] = n.Ps[i].Hash
+			vo.Sib = append(vo.Sib, n.Ps[i])
 			continue
 		}
 
 		if containsArea(area, k) {
-			mcs = append(mcs, n.Ps[i])
+			vo.Mcs = append(vo.Mcs, n.Ps[i])
 			continue
 		}
 
-		cMcs, cSib := n.Ps[i].authCountAreaAux(area)
+		voChild := n.Ps[i].authCountAreaAux(area)
 
-		mcs = append(mcs, cMcs...)
-
-		for k, v := range cSib {
-			sib[k] = v
-		}
+		vo.Mcs = append(vo.Mcs, voChild.Mcs...)
+		vo.Sib = append(vo.Sib, voChild.Sib...)
 	}
 
-	return mcs, sib
+	return vo
 }
 
 // AuthCountHalfSpace ???
-func (t *Rtree) AuthCountHalfSpace(l *line, sign bool) ([]*Node, map[string][]byte) {
+func (t *Rtree) AuthCountHalfSpace(l *line, sign bool) *VOCount {
 	return t.Root.authCountHalfSpaceAux(l, sign)
 }
 
-func (n *Node) authCountHalfSpaceAux(l *line, sign bool) ([]*Node, map[string][]byte) {
-	mcs := []*Node{}
-	sib := map[string][]byte{}
+func (n *Node) authCountHalfSpaceAux(l *line, sign bool) *VOCount {
+	vo := new(VOCount)
+	vo.Mcs = []*Node{}
+	vo.Sib = []*Node{}
 
 	for i, k := range n.Ks {
 		if !intersectsHalfSpace(l, k, sign) {
-			sib[n.Ps[i].Label] = n.Ps[i].Hash
+			vo.Sib = append(vo.Sib, n.Ps[i])
 			continue
 		}
 
 		if containsHalfSpace(l, k, sign) {
-			mcs = append(mcs, n.Ps[i])
+			vo.Mcs = append(vo.Mcs, n.Ps[i])
 			continue
 		}
 
-		cMcs, cSib := n.Ps[i].authCountHalfSpaceAux(l, sign)
+		voChild := n.Ps[i].authCountHalfSpaceAux(l, sign)
 
-		mcs = append(mcs, cMcs...)
-
-		for k, v := range cSib {
-			sib[k] = v
-		}
+		vo.Mcs = append(vo.Mcs, voChild.Mcs...)
+		vo.Sib = append(vo.Sib, voChild.Sib...)
 	}
 
-	return mcs, sib
+	return vo
 }
 
 // AuthCountVerify ???
-func AuthCountVerify(mcs []*Node, sib map[string][]byte, digest []byte) (int, bool) {
+func AuthCountVerify(vo *VOCount, digest []byte) (int, bool) {
 	panic("todo")
 }
 

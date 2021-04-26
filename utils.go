@@ -66,7 +66,7 @@ func halfSpaceSign(l *line, dir int) bool {
 
 type VOCenter struct {
 	Prunes []*VOPrune
-	Final  *VOFinal
+	Final  []*VOCount
 }
 
 type VOPrune struct {
@@ -75,14 +75,15 @@ type VOPrune struct {
 	D *line
 	R *line
 
-	LMcs, UMcs, DMcs, RMcs []*Node
-	LSib, USib, DSib, RSib map[string][]byte
+	LCount *VOCount
+	UCount *VOCount
+	DCount *VOCount
+	RCount *VOCount
 
-	PMcss [][]*Node
-	PSibs []map[string][]byte
+	Prune []*VOCount
 }
 
-type VOFinal struct {
-	PMcss [][]*Node
-	PSibs []map[string][]byte
+type VOCount struct {
+	Mcs []*Node
+	Sib []*Node
 }

@@ -37,10 +37,8 @@ func TestPositive(t *testing.T) {
 	fmt.Println("???")
 	tree, _ := NewRTree(data, 3, sumOfSlice, one)
 
-	mcs, sib := tree.AuthCountArea([4]float64{15, 1, 20, 20})
-	_ = mcs
-	_ = sib
-
+	VO := tree.AuthCountArea([4]float64{15, 1, 20, 20})
+	_ = VO
 	fmt.Println(tree)
 
 	// assert := assert.New(t)

@@ -89,11 +89,8 @@ func authCenterpoint() *VOCenter {
 		ps = newPs
 	}
 
-	finalVO := new(VOFinal)
-	finalVO.PMcss, finalVO.PSibs = rt.AuthCountPoints(ps)
-
 	centerVO := new(VOCenter)
-	centerVO.Final = finalVO
+	centerVO.Final = rt.AuthCountPoints(ps)
 	centerVO.Prunes = pruneVOs
 
 	return centerVO
@@ -103,10 +100,10 @@ func verifyCenterpoint(digest []byte, initSize int, vo *VOCenter) bool {
 	size := initSize
 
 	for _, pruneVO := range vo.Prunes {
-		lContains := verifyHalfSpace(size, pruneVO.L, pruneVO.LMcs, pruneVO.LSib, digest, 0)
-		uContains := verifyHalfSpace(size, pruneVO.U, pruneVO.UMcs, pruneVO.USib, digest, 1)
-		dContains := verifyHalfSpace(size, pruneVO.D, pruneVO.DMcs, pruneVO.DSib, digest, 2)
-		rContains := verifyHalfSpace(size, pruneVO.R, pruneVO.RMcs, pruneVO.RSib, digest, 3)
+		lContains := verifyHalfSpace(size, pruneVO.L, pruneVO.LCount, digest, 0)
+		uContains := verifyHalfSpace(size, pruneVO.U, pruneVO.UCount, digest, 1)
+		dContains := verifyHalfSpace(size, pruneVO.D, pruneVO.DCount, digest, 2)
+		rContains := verifyHalfSpace(size, pruneVO.R, pruneVO.RCount, digest, 3)
 
 		if !lContains || !uContains || !dContains || !rContains {
 			return false
@@ -117,8 +114,8 @@ func verifyCenterpoint(digest []byte, initSize int, vo *VOCenter) bool {
 		RU := 0
 		RD := 0
 
-		for i := range pruneVO.PMcss {
-			count, valid := AuthCountVerify(pruneVO.PMcss[i], pruneVO.PSibs[i], digest)
+		for _, countVO := range pruneVO.Prune {
+			count, valid := AuthCountVerify(countVO, digest)
 
 			if !valid || count != 1 {
 				return false
@@ -131,8 +128,8 @@ func verifyCenterpoint(digest []byte, initSize int, vo *VOCenter) bool {
 
 	}
 
-	for i := range vo.Final.PMcss {
-		count, valid := AuthCountVerify(vo.Final.PMcss[i], vo.Final.PSibs[i], digest)
+	for _, countVO := range vo.Final {
+		count, valid := AuthCountVerify(countVO, digest)
 
 		if !valid || count != 1 {
 			return false
@@ -142,8 +139,8 @@ func verifyCenterpoint(digest []byte, initSize int, vo *VOCenter) bool {
 	return true
 }
 
-func verifyHalfSpace(size int, l *line, mcs []*Node, sib map[string][]byte, digest []byte, dir int) bool {
-	for _, n := range mcs {
+func verifyHalfSpace(size int, l *line, vo *VOCount, digest []byte, dir int) bool {
+	for _, n := range vo.Mcs {
 		sign := halfSpaceSign(l, dir)
 
 		if !containsHalfSpace(l, n.Ks[0], sign) {
@@ -151,7 +148,7 @@ func verifyHalfSpace(size int, l *line, mcs []*Node, sib map[string][]byte, dige
 		}
 	}
 
-	count, valid := AuthCountVerify(mcs, sib, digest)
+	count, valid := AuthCountVerify(vo, digest)
 
 	if !valid {
 		return false
@@ -184,12 +181,12 @@ func prune(ps [][2]float64, rt *Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 	vo.D = center.D
 	vo.R = center.R
 
-	vo.LMcs, vo.LSib = rt.AuthCountHalfSpace(center.L, lSign)
-	vo.UMcs, vo.USib = rt.AuthCountHalfSpace(center.U, uSign)
-	vo.DMcs, vo.DSib = rt.AuthCountHalfSpace(center.D, dSign)
-	vo.RMcs, vo.RSib = rt.AuthCountHalfSpace(center.R, rSign)
+	vo.LCount = rt.AuthCountHalfSpace(center.L, lSign)
+	vo.UCount = rt.AuthCountHalfSpace(center.U, uSign)
+	vo.DCount = rt.AuthCountHalfSpace(center.D, dSign)
+	vo.RCount = rt.AuthCountHalfSpace(center.R, rSign)
 
-	vo.PMcss, vo.PSibs = rt.AuthCountPoints(delPs)
+	vo.Prune = rt.AuthCountPoints(delPs)
 
 	newRt, err := NewRTree(center.PS, rt.Fanout, rt.Root.Agg, rt.Root.AggLeaf)
 
