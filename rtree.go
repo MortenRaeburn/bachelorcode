@@ -18,13 +18,13 @@ type Rtree struct {
 // Node ???
 type Node struct {
 	Leaf    bool
-	Ks      [][4]float64
 	Ps      []*Node
 	Hash    []byte
 	Value   int
 	Label   string
 	Agg     func(aggs ...int) int
 	AggLeaf func(val int) int
+	MBR     [4]float64
 }
 
 // NewRTree ???
@@ -52,7 +52,6 @@ func NewRTree(elems [][2]float64, fanout int, agg func(aggs ...int) int, aggLeaf
 		}
 
 		roots = temp
-
 	}
 
 	roots[0].labelMaker()
@@ -104,21 +103,20 @@ func (n *Node) labelMaker() {
 
 func createInternal(roots []*Node, i int, amount int, agg func(aggs ...int) int) *Node {
 	n := new(Node)
-	n.Ks = [][4]float64{}
 	n.Ps = []*Node{}
 	n.Agg = agg
 
 	for j := 0; j < amount; j++ {
-		p := roots[i+j].Ks[0]
+		p := roots[i+j].Ps[0].MBR
 
-		for _, k := range roots[i+j].Ks {
-			p[0] = math.Min(p[0], k[0])
-			p[1] = math.Max(p[1], k[1])
-			p[2] = math.Max(p[2], k[2])
-			p[3] = math.Min(p[3], k[3])
+		for _, c := range roots[i+j].Ps {
+			p[0] = math.Min(p[0], c.MBR[0])
+			p[1] = math.Max(p[1], c.MBR[1])
+			p[2] = math.Max(p[2], c.MBR[2])
+			p[3] = math.Min(p[3], c.MBR[3])
 		}
 
-		n.Ks = append(n.Ks, p)
+		n.MBR = p
 		n.Ps = append(n.Ps, roots[i+j])
 	}
 
@@ -162,7 +160,6 @@ func (n *Node) CalcHash() {
 
 func createLeaf(elems [][2]float64, i int, amount int, roots []*Node, aggLeaf func(val int) int, agg func(vals ...int) int) *Node {
 	n := new(Node)
-	n.Ks = [][4]float64{}
 	n.Ps = []*Node{}
 	n.Agg = agg
 
@@ -172,7 +169,7 @@ func createLeaf(elems [][2]float64, i int, amount int, roots []*Node, aggLeaf fu
 		p[1] = elems[i+j][1]
 		p[2] = elems[i+j][0]
 		p[3] = elems[i+j][1]
-		n.Ks = append(n.Ks, p)
+		n.MBR = p
 
 		c := new(Node)
 		n.Ps = append(n.Ps, c)
@@ -209,8 +206,8 @@ func (t *Rtree) Search(area [4]float64) []*Node {
 func (n *Node) searchAux(area [4]float64) []*Node {
 	acc := []*Node{}
 
-	for i, k := range n.Ks {
-		if !intersectsArea(area, k) {
+	for i, c := range n.Ps {
+		if !intersectsArea(area, c.MBR) {
 			continue
 		}
 
@@ -238,13 +235,13 @@ func (n *Node) authCountAreaAux(area [4]float64) *VOCount {
 	vo.Mcs = []*Node{}
 	vo.Sib = []*Node{}
 
-	for i, k := range n.Ks {
-		if !intersectsArea(area, k) {
+	for i, c := range n.Ps {
+		if !intersectsArea(area, c.MBR) {
 			vo.Sib = append(vo.Sib, n.Ps[i])
 			continue
 		}
 
-		if containsArea(area, k) {
+		if containsArea(area, c.MBR) {
 			vo.Mcs = append(vo.Mcs, n.Ps[i])
 			continue
 		}
@@ -268,13 +265,13 @@ func (n *Node) authCountHalfSpaceAux(l *line, sign bool) *VOCount {
 	vo.Mcs = []*Node{}
 	vo.Sib = []*Node{}
 
-	for i, k := range n.Ks {
-		if !intersectsHalfSpace(l, k, sign) {
+	for i, c := range n.Ps {
+		if !intersectsHalfSpace(l, c.MBR, sign) {
 			vo.Sib = append(vo.Sib, n.Ps[i])
 			continue
 		}
 
-		if containsHalfSpace(l, k, sign) {
+		if containsHalfSpace(l, c.MBR, sign) {
 			vo.Mcs = append(vo.Mcs, n.Ps[i])
 			continue
 		}
@@ -344,7 +341,11 @@ const (
 func iterate(n *Node, lvl int, ID string) string {
 
 	Ps := n.Ps
-	Ks := n.Ks
+	Ks := [][4]float64{}
+
+	for _, p := range Ps {
+		Ks = append(Ks, p.MBR)
+	}
 
 	addBranch := true
 

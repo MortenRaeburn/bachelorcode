@@ -143,7 +143,7 @@ func verifyHalfSpace(size int, l *line, vo *VOCount, digest []byte, dir int) boo
 	for _, n := range vo.Mcs {
 		sign := halfSpaceSign(l, dir)
 
-		if !containsHalfSpace(l, n.Ks[0], sign) {
+		if !containsHalfSpace(l, n.MBR, sign) {
 			return false
 		}
 	}
