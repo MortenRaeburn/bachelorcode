@@ -137,25 +137,26 @@ func (n *Node) CalcAgg() {
 }
 
 func (n *Node) CalcHash() {
-	childVals := []int{}
-	childHashes := [][]byte{}
-
-	for i := range n.Ps {
-		childVals = append(childVals, n.Ps[i].Value)
-		childHashes = append(childHashes, n.Ps[i].Hash)
-	}
-
 	hashVal := []byte{}
 
-	for i := range childHashes {
-		hashVal = append(hashVal, childHashes[i]...)
-		hashVal = append(hashVal, []byte(strconv.Itoa(childVals[i]))...)
+	for _, c := range n.Ps {
+		hashVal = append(hashVal, []byte(strconv.Itoa(c.Value))...)
+		hashVal = append(hashVal, c.Hash...)
+
+		var mbr []byte
+
+		for _, corner := range c.MBR {
+			var buf []byte
+			binary.BigEndian.PutUint64(buf, math.Float64bits(corner))
+
+			mbr = append(mbr, buf...)
+		}
+
+		hashVal = append(hashVal, mbr...)
 	}
 
 	hash := sha256.Sum256(hashVal)
 	n.Hash = hash[:]
-
-	n.Value = n.Agg(childVals...)
 }
 
 func createLeaf(elems [][2]float64, i int, amount int, roots []*Node, aggLeaf func(val int) int, agg func(vals ...int) int) *Node {
@@ -288,6 +289,48 @@ func (n *Node) authCountHalfSpaceAux(l *line, sign bool) *VOCount {
 // AuthCountVerify ???
 func AuthCountVerify(vo *VOCount, digest []byte) (int, bool) {
 	panic("todo")
+}
+
+func verifyLayers(ls [][]*Node) []*Node {
+	calc := []*Node{}
+
+	if len(ls) != 1 {
+		calc = verifyLayers(ls[1:])
+	}
+
+	l = append(ls[0], calc...)
+
+	return calcNext(l)
+}
+
+func calcNext(l []*Node) []*Node {
+
+}
+
+func divideByLabel(ns []*Node) [][]*Node {
+	_ns := ns
+
+	less := func(i, j int) bool {
+		return len(_ns[i].Label) < len(_ns[j].Label)
+	}
+
+	sort.Slice(_ns, less)
+
+	res := [][]*Node{}
+
+	l := len(_ns[0].Label)
+	i := 0
+
+	for j, n := range _ns {
+		if len(n.Label) <= l {
+			continue
+		}
+
+		res = append(res, _ns[i:j])
+		i = j
+	}
+
+	return res
 }
 
 func intersectsArea(x, y [4]float64) bool {
