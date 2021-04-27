@@ -87,3 +87,15 @@ type VOCount struct {
 	Mcs []*Node
 	Sib []*Node
 }
+
+func labelSearch(ns []*Node, l string) (*Node, int) {
+	for i, n := range ns {
+		if n.Label != l {
+			continue
+		}
+
+		return n, i
+	}
+
+	return nil, -1
+}

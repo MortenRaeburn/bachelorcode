@@ -96,17 +96,17 @@ func authCenterpoint() *VOCenter {
 	return centerVO
 }
 
-func verifyCenterpoint(digest []byte, initSize int, vo *VOCenter) bool {
+func verifyCenterpoint(digest []byte, initSize int, vo *VOCenter, f int) ([][2]float64, bool) {
 	size := initSize
 
 	for _, pruneVO := range vo.Prunes {
-		lContains := verifyHalfSpace(size, pruneVO.L, pruneVO.LCount, digest, 0)
-		uContains := verifyHalfSpace(size, pruneVO.U, pruneVO.UCount, digest, 1)
-		dContains := verifyHalfSpace(size, pruneVO.D, pruneVO.DCount, digest, 2)
-		rContains := verifyHalfSpace(size, pruneVO.R, pruneVO.RCount, digest, 3)
+		lContains := verifyHalfSpace(size, pruneVO.L, pruneVO.LCount, digest, 0, f)
+		uContains := verifyHalfSpace(size, pruneVO.U, pruneVO.UCount, digest, 1, f)
+		dContains := verifyHalfSpace(size, pruneVO.D, pruneVO.DCount, digest, 2, f)
+		rContains := verifyHalfSpace(size, pruneVO.R, pruneVO.RCount, digest, 3, f)
 
 		if !lContains || !uContains || !dContains || !rContains {
-			return false
+			return nil, false
 		}
 
 		LU := 0
@@ -115,31 +115,91 @@ func verifyCenterpoint(digest []byte, initSize int, vo *VOCenter) bool {
 		RD := 0
 
 		for _, countVO := range pruneVO.Prune {
-			count, valid := AuthCountVerify(countVO, digest)
+			if len(countVO.Mcs) != 1 {
+				return nil, false
+			}
+
+			containsLU := cornerContains(pruneVO.L, pruneVO.U, 0, 1, countVO.Mcs[0].MBR)
+			containsLD := cornerContains(pruneVO.L, pruneVO.D, 0, 2, countVO.Mcs[0].MBR)
+			containsRU := cornerContains(pruneVO.R, pruneVO.U, 3, 1, countVO.Mcs[0].MBR)
+			containsRD := cornerContains(pruneVO.R, pruneVO.D, 3, 2, countVO.Mcs[0].MBR)
+
+			switch true {
+			case containsLU:
+				LU++
+			case containsLD:
+				LD++
+			case containsRU:
+				RU++
+			case containsRD:
+				RD++
+			default:
+				return nil, false
+			}
+
+			count, valid := AuthCountVerify(countVO, digest, f)
 
 			if !valid || count != 1 {
-				return false
+				return nil, false
 			}
+
+			ls := divideByLabel(countVO.Sib)
+			roots := verifyLayers(ls, f)
+
+			if len(roots) != 1 {
+				panic("Roots should always be len 1")
+			}
+
+			digest = roots[0].Hash
+
 		}
 
 		if LU != LD || LD != RU || RU != RD {
-			return false
+			return nil, false
 		}
 
 	}
+
+	finalPs := [][2]float64{}
 
 	for _, countVO := range vo.Final {
-		count, valid := AuthCountVerify(countVO, digest)
+		if len(countVO.Mcs) != 1 {
+			return nil, false
+		}
+
+		count, valid := AuthCountVerify(countVO, digest, f)
 
 		if !valid || count != 1 {
-			return false
+			return nil, false
 		}
+
+		mbr := countVO.Mcs[0].MBR
+
+		p := [2]float64{
+			mbr[0],
+			mbr[1],
+		}
+
+		finalPs = append(finalPs, p)
 	}
 
+	return finalPs, true
+}
+
+func cornerContains(l1, l2 *line, dir1, dir2 int, mbr [4]float64) bool {
+	sign1 := halfSpaceSign(l1, dir1)
+	sign2 := halfSpaceSign(l2, dir2)
+
+	contains1 := containsHalfSpace(l1, mbr, sign1)
+	contains2 := containsHalfSpace(l2, mbr, sign2)
+
+	if !contains1 || !contains2 {
+		return false
+	}
 	return true
 }
 
-func verifyHalfSpace(size int, l *line, vo *VOCount, digest []byte, dir int) bool {
+func verifyHalfSpace(size int, l *line, vo *VOCount, digest []byte, dir int, f int) bool {
 	for _, n := range vo.Mcs {
 		sign := halfSpaceSign(l, dir)
 
@@ -148,7 +208,7 @@ func verifyHalfSpace(size int, l *line, vo *VOCount, digest []byte, dir int) boo
 		}
 	}
 
-	count, valid := AuthCountVerify(vo, digest)
+	count, valid := AuthCountVerify(vo, digest, f)
 
 	if !valid {
 		return false

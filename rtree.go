@@ -38,8 +38,8 @@ func NewRTree(elems [][2]float64, fanout int, agg func(aggs ...int) int, aggLeaf
 
 	roots := []*Node{}
 
-	for i := 0; i < len(elems); i += fanout {
-		n := createLeaf(elems, i, min(fanout, len(elems)-i), roots, aggLeaf, agg)
+	for _, e := range elems {
+		n := createLeaf(e, aggLeaf, agg)
 		roots = append(roots, n)
 	}
 
@@ -47,7 +47,9 @@ func NewRTree(elems [][2]float64, fanout int, agg func(aggs ...int) int, aggLeaf
 		temp := []*Node{}
 
 		for i := 0; i < len(roots); i += fanout {
-			n := createInternal(roots, i, min(fanout, len(roots)-i), agg)
+			j := min(fanout, len(roots)-i) // TODO maybe off by 1
+
+			n := createInternal(roots[i:j], agg)
 			temp = append(temp, n)
 		}
 
@@ -101,29 +103,27 @@ func (n *Node) labelMaker() {
 	}
 }
 
-func createInternal(roots []*Node, i int, amount int, agg func(aggs ...int) int) *Node {
-	n := new(Node)
-	n.Ps = []*Node{}
-	n.Agg = agg
+func createInternal(ns []*Node, agg func(aggs ...int) int) *Node {
+	internal := new(Node)
+	internal.Ps = []*Node{}
+	internal.Agg = agg
 
-	for j := 0; j < amount; j++ {
-		p := roots[i+j].Ps[0].MBR
+	for _, n := range ns {
+		mbr := internal.MBR
 
-		for _, c := range roots[i+j].Ps {
-			p[0] = math.Min(p[0], c.MBR[0])
-			p[1] = math.Max(p[1], c.MBR[1])
-			p[2] = math.Max(p[2], c.MBR[2])
-			p[3] = math.Min(p[3], c.MBR[3])
-		}
+		mbr[0] = math.Min(mbr[0], n.MBR[0])
+		mbr[1] = math.Max(mbr[1], n.MBR[1])
+		mbr[2] = math.Max(mbr[2], n.MBR[2])
+		mbr[3] = math.Min(mbr[3], n.MBR[3])
 
-		n.MBR = p
-		n.Ps = append(n.Ps, roots[i+j])
+		internal.MBR = mbr
+		n.Ps = append(n.Ps, n)
 	}
 
-	n.CalcAgg()
-	n.CalcHash()
+	internal.CalcAgg()
+	internal.CalcHash()
 
-	return n
+	return internal
 }
 
 func (n *Node) CalcAgg() {
@@ -159,41 +159,19 @@ func (n *Node) CalcHash() {
 	n.Hash = hash[:]
 }
 
-func createLeaf(elems [][2]float64, i int, amount int, roots []*Node, aggLeaf func(val int) int, agg func(vals ...int) int) *Node {
+func createLeaf(p [2]float64, aggLeaf func(val int) int, agg func(vals ...int) int) *Node {
 	n := new(Node)
-	n.Ps = []*Node{}
+	n.MBR = [4]float64{}
+	n.Leaf = true
+	n.AggLeaf = aggLeaf
 	n.Agg = agg
+	n.Value = one(69)
 
-	for j := 0; j < amount; j++ {
-		p := [4]float64{}
-		p[0] = elems[i+j][0]
-		p[1] = elems[i+j][1]
-		p[2] = elems[i+j][0]
-		p[3] = elems[i+j][1]
-		n.MBR = p
+	n.MBR[0] = p[0]
+	n.MBR[1] = p[1]
+	n.MBR[2] = p[0]
+	n.MBR[3] = p[1]
 
-		c := new(Node)
-		n.Ps = append(n.Ps, c)
-		c.Leaf = true
-		c.AggLeaf = aggLeaf
-		c.Value = aggLeaf(-69) // TODO Allow for other aggregate values than COUNT
-
-		hashVal := []byte{}
-
-		for i := range p {
-			var buf []byte
-			binary.BigEndian.PutUint64(buf, math.Float64bits(p[i]))
-
-			hashVal = append(hashVal, buf...)
-		}
-
-		hashVal = append(hashVal, []byte(strconv.Itoa(c.Value))...)
-
-		hash := sha256.Sum256(hashVal)
-		c.Hash = hash[:]
-	}
-
-	n.CalcAgg()
 	n.CalcHash()
 
 	return n
@@ -287,24 +265,76 @@ func (n *Node) authCountHalfSpaceAux(l *line, sign bool) *VOCount {
 }
 
 // AuthCountVerify ???
-func AuthCountVerify(vo *VOCount, digest []byte) (int, bool) {
-	panic("todo")
+func AuthCountVerify(vo *VOCount, digest []byte, f int) (int, bool) {
+	ns := append(vo.Mcs, vo.Sib...)
+	ls := divideByLabel(ns)
+	roots := verifyLayers(ls, f)
+
+	if len(roots) != 1 {
+		return -1, false
+	}
+
+	root := roots[0]
+
+	if len(digest) != len(root.Hash) {
+		return -1, false
+	}
+
+	for i := range digest {
+		if root.Hash[i] != digest[i] {
+			return -1, false
+		}
+	}
+
+	count := 0
+
+	for _, mcs := range vo.Mcs {
+		count += mcs.Value
+	}
+
+	return count, true
 }
 
-func verifyLayers(ls [][]*Node) []*Node {
+func verifyLayers(ls [][]*Node, f int) []*Node {
 	calc := []*Node{}
 
 	if len(ls) != 1 {
-		calc = verifyLayers(ls[1:])
+		calc = verifyLayers(ls[1:], f)
 	}
 
-	l = append(ls[0], calc...)
+	l := append(ls[0], calc...)
 
-	return calcNext(l)
+	return calcNext(l, f)
 }
 
-func calcNext(l []*Node) []*Node {
+func calcNext(ns []*Node, f int) []*Node {
+	res := []*Node{}
 
+	for len(ns) == 0 {
+		n := ns[0]
+		parLabel := n.Label[:len(n.Label)-1]
+	
+		nextNs := ns
+		ss := []*Node{}
+		for i := 0; i < f; i++ {
+			iStr := strconv.Itoa(i)
+	
+			sLabel := parLabel + iStr
+			sNode, j := labelSearch(ns, sLabel)
+	
+			if sNode == nil {
+				continue
+			}
+	
+			nextNs = append(nextNs[:j], nextNs[j+1:]...)
+			ss = append(ss, sNode)
+		}
+	
+		ns = nextNs
+		res = append(res, createInternal(ss, sumOfSlice))
+	}
+	
+	return res
 }
 
 func divideByLabel(ns []*Node) [][]*Node {
