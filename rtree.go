@@ -47,7 +47,7 @@ func NewRTree(elems [][2]float64, fanout int, agg func(aggs ...int) int, aggLeaf
 		temp := []*Node{}
 
 		for i := 0; i < len(roots); i += fanout {
-			j := min(fanout, len(roots)-i) // TODO maybe off by 1
+			j := min(i+fanout, len(roots)) // TODO maybe off by 1
 
 			n := createInternal(roots[i:j], agg)
 			temp = append(temp, n)
@@ -107,6 +107,7 @@ func createInternal(ns []*Node, agg func(aggs ...int) int) *Node {
 	internal := new(Node)
 	internal.Ps = []*Node{}
 	internal.Agg = agg
+	internal.MBR = ns[0].MBR
 
 	for _, n := range ns {
 		mbr := internal.MBR
@@ -117,7 +118,7 @@ func createInternal(ns []*Node, agg func(aggs ...int) int) *Node {
 		mbr[3] = math.Min(mbr[3], n.MBR[3])
 
 		internal.MBR = mbr
-		n.Ps = append(n.Ps, n)
+		internal.Ps = append(internal.Ps, n)
 	}
 
 	internal.CalcAgg()
@@ -146,10 +147,10 @@ func (n *Node) CalcHash() {
 		var mbr []byte
 
 		for _, corner := range c.MBR {
-			var buf []byte
-			binary.BigEndian.PutUint64(buf, math.Float64bits(corner))
+			var buf [8]byte
+			binary.BigEndian.PutUint64(buf[:], math.Float64bits(corner))
 
-			mbr = append(mbr, buf...)
+			mbr = append(mbr, buf[:]...)
 		}
 
 		hashVal = append(hashVal, mbr...)
@@ -313,27 +314,27 @@ func calcNext(ns []*Node, f int) []*Node {
 	for len(ns) == 0 {
 		n := ns[0]
 		parLabel := n.Label[:len(n.Label)-1]
-	
+
 		nextNs := ns
 		ss := []*Node{}
 		for i := 0; i < f; i++ {
 			iStr := strconv.Itoa(i)
-	
+
 			sLabel := parLabel + iStr
 			sNode, j := labelSearch(ns, sLabel)
-	
+
 			if sNode == nil {
 				continue
 			}
-	
+
 			nextNs = append(nextNs[:j], nextNs[j+1:]...)
 			ss = append(ss, sNode)
 		}
-	
+
 		ns = nextNs
 		res = append(res, createInternal(ss, sumOfSlice))
 	}
-	
+
 	return res
 }
 
