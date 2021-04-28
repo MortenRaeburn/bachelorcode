@@ -13,6 +13,7 @@ import (
 type Rtree struct {
 	Root   *Node
 	Fanout int
+	Digest []byte
 }
 
 // Node ???
@@ -61,6 +62,7 @@ func NewRTree(elems [][2]float64, fanout int, agg func(aggs ...int) int, aggLeaf
 	t := new(Rtree)
 	t.Fanout = fanout
 	t.Root = roots[0]
+	t.Digest = t.Root.Hash
 
 	return t, nil
 }
@@ -311,7 +313,7 @@ func verifyLayers(ls [][]*Node, f int) []*Node {
 func calcNext(ns []*Node, f int) []*Node {
 	res := []*Node{}
 
-	for len(ns) == 0 {
+	for len(ns) != 0 {
 		n := ns[0]
 		parLabel := n.Label[:len(n.Label)-1]
 
@@ -332,7 +334,9 @@ func calcNext(ns []*Node, f int) []*Node {
 		}
 
 		ns = nextNs
-		res = append(res, createInternal(ss, sumOfSlice))
+		internal := createInternal(ss, sumOfSlice)
+		internal.Label = parLabel
+		res = append(res, internal)
 	}
 
 	return res
@@ -353,19 +357,21 @@ func divideByLabel(ns []*Node) [][]*Node {
 	i := 0
 
 	for j, n := range _ns {
-		if len(n.Label) <= l {
+		if len(n.Label) == l {
 			continue
 		}
 
 		res = append(res, _ns[i:j])
+		l = len(n.Label)
 		i = j
 	}
+	res = append(res, _ns[i:])
 
 	return res
 }
 
 func intersectsArea(x, y [4]float64) bool {
-	return x[0] < y[2] && x[2] > y[0] && x[3] < y[1] && x[1] > y[3] // Proof by contradiction, any of these cases mean that x and y cannot intersect; so if none exist, then they intersect: https://stackoverflow.com/a/306332
+	return x[0] <= y[2] && x[2] >= y[0] && x[3] <= y[1] && x[1] >= y[3] // Proof by contradiction, any of these cases mean that x and y cannot intersect; so if none exist, then they intersect: https://stackoverflow.com/a/306332
 }
 
 func containsArea(outer, inner [4]float64) bool {

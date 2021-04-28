@@ -9,7 +9,6 @@ import (
 	"math/rand"
 	"net/http"
 	"sort"
-	"time"
 )
 
 var centerpoint_url string = "http://127.0.0.1:5000/centerpoint"
@@ -26,7 +25,7 @@ func centerpoint(ps [][2]float64) *center_res {
 	json_data, err := json.Marshal(ps)
 
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	resp, err := http.Post(centerpoint_url, "application/json",
@@ -42,7 +41,7 @@ func centerpoint(ps [][2]float64) *center_res {
 		log.Fatal(err)
 	}
 
-	res := &center_res{}
+	res := new(center_res)
 
 	err = json.Unmarshal(bodyBytes, res)
 
@@ -53,27 +52,9 @@ func centerpoint(ps [][2]float64) *center_res {
 	return res
 }
 
-func main() {
-	authCenterpoint()
-}
+func main() {}
 
-func authCenterpoint() *VOCenter {
-	rand.Seed(time.Now().UTC().UnixNano())
-
-	ps := [][2]float64{}
-
-	for i := 0; i < 100; i++ {
-		x := rand.Float64()*200 - 100
-		y := rand.Float64()*200 - 100
-
-		ps = append(ps, [2]float64{x, y})
-	}
-
-	rt, err := NewRTree(ps, 3, sumOfSlice, one)
-
-	if err != nil {
-		panic(err)
-	}
+func AuthCenterpoint(ps [][2]float64, rt *Rtree) *VOCenter {
 
 	pruneVOs := []*VOPrune{}
 
@@ -96,7 +77,19 @@ func authCenterpoint() *VOCenter {
 	return centerVO
 }
 
-func verifyCenterpoint(digest []byte, initSize int, vo *VOCenter, f int) ([][2]float64, bool) {
+func GeneratePoints() [][2]float64 {
+	ps := [][2]float64{}
+
+	for i := 0; i < 100; i++ {
+		x := rand.Float64()*200 - 100
+		y := rand.Float64()*200 - 100
+
+		ps = append(ps, [2]float64{x, y})
+	}
+	return ps
+}
+
+func VerifyCenterpoint(digest []byte, initSize int, vo *VOCenter, f int) ([][2]float64, bool) {
 	size := initSize
 
 	for _, pruneVO := range vo.Prunes {
@@ -224,7 +217,8 @@ func verifyHalfSpace(size int, l *line, vo *VOCount, digest []byte, dir int, f i
 func prune(ps [][2]float64, rt *Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 	center := centerpoint(ps)
 
-	delPs, _ := diff(ps, center.PS)
+	delPs, addPs := diff(ps, center.PS)
+	_ = addPs
 
 	if len(delPs) == 0 {
 		return nil, nil, ps, false
@@ -311,7 +305,7 @@ func diff(ps1, ps2 [][2]float64) ([][2]float64, [][2]float64) {
 	newPs1 := ps1 // TODO May need actual deep cloning depending on slice behavior
 	newPs2 := ps2
 
-	for i, p := range newPs1 {
+	for i, p := range ps1 {
 		j, found := pointSearch(newPs2, p)
 
 		if !found {

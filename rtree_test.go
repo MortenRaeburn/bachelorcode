@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func testStartLabel(t *testing.T) {
@@ -13,6 +15,38 @@ func testStartLabel(t *testing.T) {
 func testEndLabel() {
 	fmt.Println()
 	fmt.Println()
+}
+
+func TestAuthCountPoint(t *testing.T) {
+	testStartLabel(t)
+	defer testEndLabel()
+
+	assert := assert.New(t)
+
+	data := [][2]float64{
+		{1, 2},
+		{3, 4},
+		{5, 6},
+		{7, 8},
+		{9, 10},
+		{11, 12},
+		{13, 14},
+		{15, 16},
+		{17, 18},
+		{19, 20},
+		{21, 22},
+		{23, 24},
+	}
+
+	tree, _ := NewRTree(data, 3, sumOfSlice, one)
+
+	VO := tree.AuthCountPoint(data[3])
+
+	res, valid := AuthCountVerify(VO, tree.Digest, 3)
+
+	assert.Equal(1, res, "Wrong number of points")
+	assert.True(valid, "Should be true")
+
 }
 
 func TestPositive(t *testing.T) {
@@ -71,4 +105,27 @@ func TestCount(t *testing.T) {
 	}
 }
 
+func TestCenterPointQueryPositive(t *testing.T) {
+	testStartLabel(t)
+	defer testEndLabel()
+
+	ps := GeneratePoints()
+
+	rt, err := NewRTree(ps, 3, sumOfSlice, one)
+
+	if err != nil {
+		panic(err)
+	}
+
+	VO := AuthCenterpoint(ps, rt)
+	digest := rt.Digest
+	dataSize := len(ps)
+
+	_, valid := VerifyCenterpoint(digest, dataSize, VO, rt.Fanout)
+
+	if !valid {
+		t.Error("TestCenterPointQueryPositive failed. Expected true, but got false")
+	}
+
+}
 
