@@ -58,7 +58,7 @@ func AuthCenterpoint(ps [][2]float64, rt *Rtree) *VOCenter {
 
 	pruneVOs := []*VOPrune{}
 
-	for true {
+	for {
 		vo, newRt, newPs, pruning := prune(ps, rt)
 
 		if !pruning {
@@ -207,7 +207,7 @@ func verifyHalfSpace(size int, l *line, vo *VOCount, digest []byte, dir int, f i
 		return false
 	}
 
-	if (count+2)/3-1 <= size {
+	if (size+2)/3-1 >= count {
 		return false
 	}
 
@@ -224,21 +224,16 @@ func prune(ps [][2]float64, rt *Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 		return nil, nil, ps, false
 	}
 
-	lSign := halfSpaceSign(center.L, 0)
-	uSign := halfSpaceSign(center.U, 1)
-	dSign := halfSpaceSign(center.D, 2)
-	rSign := halfSpaceSign(center.R, 3)
-
 	vo := new(VOPrune)
 	vo.L = center.L
 	vo.U = center.U
 	vo.D = center.D
 	vo.R = center.R
 
-	vo.LCount = rt.AuthCountHalfSpace(center.L, lSign)
-	vo.UCount = rt.AuthCountHalfSpace(center.U, uSign)
-	vo.DCount = rt.AuthCountHalfSpace(center.D, dSign)
-	vo.RCount = rt.AuthCountHalfSpace(center.R, rSign)
+	vo.LCount = rt.AuthCountHalfSpace(center.L, 0)
+	vo.UCount = rt.AuthCountHalfSpace(center.U, 1)
+	vo.DCount = rt.AuthCountHalfSpace(center.D, 2)
+	vo.RCount = rt.AuthCountHalfSpace(center.R, 3)
 
 	vo.Prune = rt.AuthCountPoints(delPs)
 

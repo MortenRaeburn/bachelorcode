@@ -238,7 +238,8 @@ func (n *Node) authCountAreaAux(area [4]float64) *VOCount {
 }
 
 // AuthCountHalfSpace ???
-func (t *Rtree) AuthCountHalfSpace(l *line, sign bool) *VOCount {
+func (t *Rtree) AuthCountHalfSpace(l *line, dir int) *VOCount {
+	sign := halfSpaceSign(l, dir)
 	return t.Root.authCountHalfSpaceAux(l, sign)
 }
 
