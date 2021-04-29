@@ -3,8 +3,21 @@ package main
 var eps float64 = 0.00000001
 
 type line struct {
-	B float64
-	M float64
+	B    float64
+	M    float64
+	Dir  int
+	Sign bool
+}
+
+func NewLine(m, b float64, dir int) *line {
+	l := new(line)
+	l.B = b
+	l.M = m
+	l.Dir = dir
+
+	l.Sign = halfSpaceSign(l)
+
+	return l
 }
 
 func max(x, y int) int {
@@ -40,7 +53,7 @@ func sumOfSlice(i ...int) int {
 }
 
 // dir is in the order L, U, D, and R
-func halfSpaceSign(l *line, dir int) bool {
+func halfSpaceSign(l *line) bool {
 	signLookup := map[bool]map[int]bool{
 		true: {
 			0: true,
@@ -61,7 +74,7 @@ func halfSpaceSign(l *line, dir int) bool {
 		mPositive = false
 	}
 
-	return signLookup[mPositive][dir]
+	return signLookup[mPositive][l.Dir]
 }
 
 type VOCenter struct {
@@ -80,7 +93,7 @@ type VOPrune struct {
 	DCount *VOCount
 	RCount *VOCount
 
-	Prune []*VOCount
+	Prune [][4]*VOCount
 }
 
 type VOCount struct {

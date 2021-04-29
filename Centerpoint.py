@@ -49,9 +49,6 @@ class Centerpoint:
         self.find_U_boundary()
         self.find_D_boundary()
         self.find_R_boundary()
-        self.find_intersections()
-        self.replace_points()
-        self.point_set = remove_repeat_points(self.point_set)
 
         print("After: %d" % len(self.point_set))
 
@@ -60,7 +57,6 @@ class Centerpoint:
             'U': self.U_boundary_line,
             'R': self.R_boundary_line,
             'D': self.D_boundary_line,
-            'PS': [(p.x, p.y) for p in self.point_set],
         }
 
     def brute_force_centerpoint(self):

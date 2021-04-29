@@ -238,28 +238,27 @@ func (n *Node) authCountAreaAux(area [4]float64) *VOCount {
 }
 
 // AuthCountHalfSpace ???
-func (t *Rtree) AuthCountHalfSpace(l *line, dir int) *VOCount {
-	sign := halfSpaceSign(l, dir)
-	return t.Root.authCountHalfSpaceAux(l, sign)
+func (t *Rtree) AuthCountHalfSpace(l *line) *VOCount {
+	return t.Root.authCountHalfSpaceAux(l)
 }
 
-func (n *Node) authCountHalfSpaceAux(l *line, sign bool) *VOCount {
+func (n *Node) authCountHalfSpaceAux(l *line) *VOCount {
 	vo := new(VOCount)
 	vo.Mcs = []*Node{}
 	vo.Sib = []*Node{}
 
 	for i, c := range n.Ps {
-		if !intersectsHalfSpace(l, c.MBR, sign) {
+		if !intersectsHalfSpace(l, c.MBR) {
 			vo.Sib = append(vo.Sib, n.Ps[i])
 			continue
 		}
 
-		if containsHalfSpace(l, c.MBR, sign) {
+		if containsHalfSpace(l, c.MBR) {
 			vo.Mcs = append(vo.Mcs, n.Ps[i])
 			continue
 		}
 
-		voChild := n.Ps[i].authCountHalfSpaceAux(l, sign)
+		voChild := n.Ps[i].authCountHalfSpaceAux(l)
 
 		vo.Mcs = append(vo.Mcs, voChild.Mcs...)
 		vo.Sib = append(vo.Sib, voChild.Sib...)
@@ -379,14 +378,14 @@ func containsArea(outer, inner [4]float64) bool {
 	return outer[0] <= inner[0] && outer[1] >= inner[1] && outer[2] >= inner[2] && outer[3] <= inner[3]
 }
 
-func intersectsHalfSpace(l *line, r [4]float64, sign bool) bool {
-	amount := intersectsHalfSpaceAux(r, l, sign)
+func intersectsHalfSpace(l *line, r [4]float64) bool {
+	amount := intersectsHalfSpaceAux(r, l)
 
 	return amount > 0
 
 }
 
-func intersectsHalfSpaceAux(r [4]float64, l *line, sign bool) int {
+func intersectsHalfSpaceAux(r [4]float64, l *line) int {
 	// TODO correct int to float64 and remove conversion
 	ps := [][2]float64{
 		{float64(r[0]), float64(r[1])},
@@ -395,13 +394,13 @@ func intersectsHalfSpaceAux(r [4]float64, l *line, sign bool) int {
 		{float64(r[2]), float64(r[3])},
 	}
 
-	f := filter(l, ps, sign)
+	f := filter(l, ps)
 
 	return len(f)
 }
 
-func containsHalfSpace(l *line, r [4]float64, sign bool) bool {
-	amount := intersectsHalfSpaceAux(r, l, sign)
+func containsHalfSpace(l *line, r [4]float64) bool {
+	amount := intersectsHalfSpaceAux(r, l)
 
 	return amount == 4
 }
