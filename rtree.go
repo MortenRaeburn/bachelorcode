@@ -105,6 +105,51 @@ func (n *Node) labelMaker() {
 	}
 }
 
+func (n *Node) remove(t *Node) bool {
+	for i, child := range n.Ps {
+		if child.Label == t.Label {
+			n.Ps = append(n.Ps[:i], n.Ps[i+1:]...)
+
+			n.CalcAgg()
+			n.CalcHash()
+			n.CalcMBR()
+			return true
+		}
+
+		done := child.remove(t)
+
+		if done {
+			n.CalcAgg()
+			n.CalcHash()
+			n.CalcMBR()
+			return true
+		}
+	}
+
+	return false
+}
+
+func (n *Node) replace(t, s *Node) bool {
+	for i, child := range n.Ps {
+		if child.Label == t.Label {
+			n.Ps[i] = s
+			n.CalcHash()
+			n.CalcMBR()
+			return true
+		}
+
+		done := child.replace(t, s)
+
+		if done {
+			n.CalcHash()
+			n.CalcMBR()
+			return true
+		}
+	}
+
+	return false
+}
+
 func createInternal(ns []*Node, agg func(aggs ...int) int) *Node {
 	internal := new(Node)
 	internal.Ps = []*Node{}
@@ -112,21 +157,27 @@ func createInternal(ns []*Node, agg func(aggs ...int) int) *Node {
 	internal.MBR = ns[0].MBR
 
 	for _, n := range ns {
-		mbr := internal.MBR
-
-		mbr[0] = math.Min(mbr[0], n.MBR[0])
-		mbr[1] = math.Max(mbr[1], n.MBR[1])
-		mbr[2] = math.Max(mbr[2], n.MBR[2])
-		mbr[3] = math.Min(mbr[3], n.MBR[3])
-
-		internal.MBR = mbr
 		internal.Ps = append(internal.Ps, n)
 	}
 
+	internal.CalcMBR()
 	internal.CalcAgg()
 	internal.CalcHash()
 
 	return internal
+}
+
+func (n *Node) CalcMBR() {
+	for _, p := range n.Ps {
+		mbr := n.MBR
+
+		mbr[0] = math.Min(mbr[0], p.MBR[0])
+		mbr[1] = math.Max(mbr[1], p.MBR[1])
+		mbr[2] = math.Max(mbr[2], p.MBR[2])
+		mbr[3] = math.Min(mbr[3], p.MBR[3])
+
+		n.MBR = mbr
+	}
 }
 
 func (n *Node) CalcAgg() {
@@ -188,16 +239,22 @@ func (t *Rtree) Search(area [4]float64) []*Node {
 func (n *Node) searchAux(area [4]float64) []*Node {
 	acc := []*Node{}
 
-	for i, c := range n.Ps {
+	area[0] -= eps
+	area[1] += eps
+	area[2] += eps
+	area[3] -= eps
+
+	for _, c := range n.Ps {
 		if !intersectsArea(area, c.MBR) {
 			continue
 		}
 
-		if n.Leaf {
-			return []*Node{n}
+		if c.Leaf {
+			acc = append(acc, c)
+			continue
 		}
 
-		acc = append(acc, n.Ps[i].searchAux(area)...)
+		acc = append(acc, c.searchAux(area)...)
 	}
 
 	return acc

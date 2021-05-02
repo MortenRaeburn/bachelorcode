@@ -1,6 +1,6 @@
 package main
 
-var eps float64 = 0.00000001
+var eps float64 = 0.00001
 
 type line struct {
 	B    float64

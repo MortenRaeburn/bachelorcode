@@ -51,7 +51,7 @@ func centerpoint(ps [][2]float64) *center_res {
 	err = json.Unmarshal(bodyBytes, res)
 
 	if err != nil {
-		panic(err)
+		return nil
 	}
 
 	res.addDirAndSign()
@@ -62,7 +62,6 @@ func centerpoint(ps [][2]float64) *center_res {
 func main() {}
 
 func AuthCenterpoint(ps [][2]float64, rt *Rtree) *VOCenter {
-
 	pruneVOs := []*VOPrune{}
 
 	for {
@@ -146,8 +145,35 @@ func VerifyCenterpoint(digest []byte, initSize int, vo *VOCenter, f int) ([][2]f
 				panic("Roots should always be len 1")
 			}
 
-			digest = roots[0].Hash
+			root := roots[0]
 
+			if len(root.Hash) != len(digest) {
+				return nil, false
+			}
+
+			for i := range digest {
+				if digest[i] != root.Hash[i] {
+					return nil, false
+				}
+			}
+
+			var lu, ld, ru, rd [2]float64
+			copy(lu[:], LU.Mcs[0].MBR[:])
+			copy(ld[:], LU.Mcs[0].MBR[:])
+			copy(ru[:], LU.Mcs[0].MBR[:])
+			copy(rd[:], LU.Mcs[0].MBR[:])
+
+			radon := calcRadon(lu, ld, ru, rd)
+
+			radonN := createLeaf(radon, one, sumOfSlice)
+			radonN.Label = LU.Mcs[0].Label
+
+			root.replace(LU.Mcs[0], radonN)
+			root.remove(LD.Mcs[0])
+			root.remove(RU.Mcs[0])
+			root.remove(RD.Mcs[0])
+
+			digest = roots[0].Hash
 		}
 
 	}
@@ -211,6 +237,10 @@ func verifyHalfSpace(size int, l *line, vo *VOCount, digest []byte, f int) bool 
 func prune(ps [][2]float64, rt *Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 	center := centerpoint(ps)
 
+	if center == nil {
+		return nil, rt, ps, false
+	}
+
 	vo := new(VOPrune)
 	vo.L = center.L
 	vo.U = center.U
@@ -229,7 +259,7 @@ func prune(ps [][2]float64, rt *Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 
 	_ps := ps
 
-	for i, p := range ps {
+	for _, p := range ps {
 		mbr := [4]float64{
 			p[0],
 			p[1],
@@ -258,18 +288,34 @@ func prune(ps [][2]float64, rt *Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 			continue
 		}
 
-		_ps = append(_ps[:i], _ps[i+1:]...)
-	}
+		i, found := pointSearch(_ps, p)
 
-	iterated := false
-
-	for {
-		if len(LU) == 0 || len(LD) == 0 || len(RU) == 0 || len(RD) == 0 {
-			break
+		if !found {
+			panic("Something went very wrong")
 		}
 
-		ps = _ps
-		iterated = true
+		_ps[i] = _ps[len(_ps)-1]
+		_ps = _ps[:len(_ps)-1]
+	}
+
+	if len(_ps) == 0 {
+		return nil, rt, ps, false
+	}
+
+	done := func(LU, LD, RU, RD [][2]float64) bool {
+		return len(LU) == 0 || len(LD) == 0 || len(RU) == 0 || len(RD) == 0
+	}
+
+	if done(LU, LD, RU, RD) {
+		return nil, rt, ps, false
+	}
+
+	ps = _ps
+
+	for {
+		if done(LU, LD, RU, RD) {
+			break
+		}
 
 		var lu, ld, ru, rd [2]float64
 		lu, LU = LU[0], LU[1:]
@@ -286,43 +332,93 @@ func prune(ps [][2]float64, rt *Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 
 		vo.Prune = append(vo.Prune, prune)
 
-		radon := calcRadon([2][2][2]float64{
-			{lu, rd},
-			{ld, ru},
-		})
+		luN := rt.Search([4]float64{
+			lu[0],
+			lu[1],
+			lu[0],
+			lu[1],
+		})[0]
 
+		ldN := rt.Search([4]float64{
+			ld[0],
+			ld[1],
+			ld[0],
+			ld[1],
+		})[0]
+
+		ruN := rt.Search([4]float64{
+			ru[0],
+			ru[1],
+			ru[0],
+			ru[1],
+		})[0]
+
+		rdN := rt.Search([4]float64{
+			rd[0],
+			rd[1],
+			rd[0],
+			rd[1],
+		})[0]
+
+		radon := calcRadon(lu, ld, ru, rd)
 		ps = append(ps, radon)
+		radonN := createLeaf(radon, one, sumOfSlice)
+		radonN.Label = luN.Label
+
+		rt.Root.replace(luN, radonN)
+		rt.Root.remove(ldN)
+		rt.Root.remove(ruN)
+		rt.Root.remove(rdN)
 	}
 
-	rt, err := NewRTree(ps, rt.Fanout, rt.Root.Agg, rt.Root.AggLeaf)
-
-	if err != nil {
-		panic(err)
-	}
-
-	return vo, rt, ps, iterated
+	return vo, rt, ps, true
 
 }
 
-func calcRadon(pss [2][2][2]float64) [2]float64 {
-	aux := func(ps [2][2]float64) *line {
-		if ps[0][0] > ps[1][0] {
-			ps[0], ps[1] = ps[1], ps[0]
-		}
+func calcRadon(lu, ld, ru, rd [2]float64) [2]float64 {
 
-		l := new(line)
-		l.M = (ps[1][1] - ps[0][1]) / (ps[1][0] - ps[0][0])
-		l.B = ps[0][1] - l.M*ps[0][0]
+	ps := [][2]float64{lu, ld, ru, rd}
+	// hull := openConvexHull(ps)
+	hull := [][2]float64{}
+	//open convex hull please
 
-		return l
+	//case 2 (see paper)
+	if len(hull) == 1 {
+		return hull[0]
 	}
 
-	l1 := aux(pss[0])
-	l2 := aux(pss[1])
+	//case 3
+	if len(hull) == 0 {
+		radon := [2]float64{}
+		D := (lu[0]-ld[0])*(ru[1]-rd[1]) - (lu[1]-ld[1])*(ru[0]-rd[0])
+		radon[0] = ((lu[0]*ld[1]-lu[1]*ld[0])*(ru[0]-rd[0]) - (lu[0]-ld[0])*(ru[0]*rd[1]-ru[1]*rd[0])) / D //works
+		radon[1] = ((lu[0]*ld[1]-lu[1]*ld[0])*(ru[1]-rd[1]) - (lu[1]-ld[1])*(ru[0]*rd[1]-ru[1]*rd[0])) / D
 
-	x := (l2.B - l1.B) / (l1.M - l2.M)
+		return radon
+	}
 
-	return linePoint(l1, x)
+	//case 1
+	ps = pointsSort(ps)
+
+	return ps[1]
+}
+
+func drawLine(p1, p2 [2]float64) *line {
+	l := new(line)
+
+	l.M = (p1[1] - p2[1]) / (p1[0] - p2[0])
+
+	l.B = p1[1] - l.M*p1[0]
+	l.Dir = 0
+	l.Sign = true
+
+	return l
+}
+
+func openConvexHull(ps [][2]float64) [][2]float64 {
+	//TODO
+	return [][2]float64{}
+
 }
 
 func linePoint(l *line, x float64) [2]float64 {

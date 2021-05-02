@@ -2,7 +2,10 @@ package main
 
 import (
 	"fmt"
+	"math"
+	"math/rand"
 	"testing"
+	
 
 	"github.com/stretchr/testify/assert"
 )
@@ -15,6 +18,63 @@ func testStartLabel(t *testing.T) {
 func testEndLabel() {
 	fmt.Println()
 	fmt.Println()
+}
+
+func TestAuthCenterPoint(t *testing.T) {
+	testStartLabel(t)
+	defer testEndLabel()
+	assert := assert.New(t)
+
+	rand.Seed(69)
+
+	ps := GeneratePoints(1000)
+
+	tree, _ := NewRTree(ps, 3, sumOfSlice, one)
+
+	VO := AuthCenterpoint(ps, tree)
+
+	_, valid := VerifyCenterpoint(tree.Digest, len(ps), VO, tree.Fanout)
+
+	assert.True(valid)
+
+}
+
+// func TestCalcRadonPointSimple(t *testing.T) {
+// 	testStartLabel(t)
+// 	defer testEndLabel()
+
+// 	assert := assert.New(t)
+
+// 	data := [4][2]float64{
+// 		{0, 0},
+// 		{2, 2},
+// 		{0, 2},
+// 		{2, 0},
+// 	}
+
+// 	radon := calcRadon(data[0], data[1], data[2], data[3])
+
+// 	assert.Equal([2]float64{1, 1}, radon)
+// }
+
+func TestCalcRadonPoint(t *testing.T) {
+	testStartLabel(t)
+	defer testEndLabel()
+
+	assert := assert.New(t)
+
+	data := [4][2]float64{
+		{-3, 2},
+		{2.16, -1.53},
+		{3.04, 2.27},
+		{-1.08, -1.61},
+	}
+
+	radon := calcRadon(data[0], data[1], data[2], data[3])
+
+	print(radon[0], radon[1])
+
+	assert.True(math.Abs(radon[0]-0.33) < eps && math.Abs(radon[1]-(-0.28)) < eps)
 }
 
 func TestHalfspaceCountTwoNegative(t *testing.T) {
@@ -37,16 +97,13 @@ func TestHalfspaceCountTwoNegative(t *testing.T) {
 
 	tree, _ := NewRTree(data, 3, sumOfSlice, one)
 
-	l := new(line)
+	l := NewLine(1, 0, 0)
 
-	l.B = 0
-	l.M = 1
+	VO := tree.AuthCountHalfSpace(l)
 
-	VO := tree.AuthCountHalfSpace(l, 0)
+	valid := verifyHalfSpace(len(data), l, VO, tree.Digest, tree.Fanout)
 
-	valid := verifyHalfSpace(len(data), l, VO, tree.Digest, 0, tree.Fanout)
-
-	assert.False(valid, "Should be true")
+	assert.False(valid, "Should be false")
 
 }
 
@@ -65,14 +122,11 @@ func TestHalfspaceCountTwo(t *testing.T) {
 
 	tree, _ := NewRTree(data, 3, sumOfSlice, one)
 
-	l := new(line)
+	l := NewLine(1, 0, 1)
 
-	l.B = 0
-	l.M = 1
+	VO := tree.AuthCountHalfSpace(l)
 
-	VO := tree.AuthCountHalfSpace(l, 1)
-
-	valid := verifyHalfSpace(len(data), l, VO, tree.Digest, 1, tree.Fanout)
+	valid := verifyHalfSpace(len(data), l, VO, tree.Digest, tree.Fanout)
 
 	assert.True(valid, "Should be true")
 
@@ -130,14 +184,11 @@ func TestHalfspaceCountNegative(t *testing.T) {
 
 	tree, _ := NewRTree(data, 3, sumOfSlice, one)
 
-	l := new(line)
+	l := NewLine(0, 0, 1)
 
-	l.B = 0
-	l.M = 0
+	VO := tree.AuthCountHalfSpace(l)
 
-	VO := tree.AuthCountHalfSpace(l, 1)
-
-	valid := verifyHalfSpace(len(data), l, VO, tree.Digest, 1, tree.Fanout)
+	valid := verifyHalfSpace(len(data), l, VO, tree.Digest, tree.Fanout)
 
 	assert.False(valid, "Should be false")
 
@@ -157,14 +208,11 @@ func TestHalfspaceCount(t *testing.T) {
 
 	tree, _ := NewRTree(data, 3, sumOfSlice, one)
 
-	l := new(line)
+	l := NewLine(0, 0, 1)
 
-	l.B = 0
-	l.M = 0
+	VO := tree.AuthCountHalfSpace(l)
 
-	VO := tree.AuthCountHalfSpace(l, 1)
-
-	valid := verifyHalfSpace(len(data), l, VO, tree.Digest, 1, tree.Fanout)
+	valid := verifyHalfSpace(len(data), l, VO, tree.Digest, tree.Fanout)
 
 	assert.True(valid, "Should be true")
 
@@ -258,26 +306,33 @@ func TestCount(t *testing.T) {
 	}
 }
 
-func TestCenterPointQueryPositive(t *testing.T) {
-	testStartLabel(t)
-	defer testEndLabel()
+func GeneratePoints(size int) [][2]float64 {
+	ps := [][2]float64{}
 
-	ps := GeneratePoints()
+	for i := 0; i < size; i++ {
+		x := rand.Float64()*200 - 100
+		y := rand.Float64()*200 - 100
 
-	rt, err := NewRTree(ps, 3, sumOfSlice, one)
-
-	if err != nil {
-		panic(err)
+		ps = append(ps, [2]float64{x, y})
 	}
-
-	VO := AuthCenterpoint(ps, rt)
-	digest := rt.Digest
-	dataSize := len(ps)
-
-	_, valid := VerifyCenterpoint(digest, dataSize, VO, rt.Fanout)
-
-	if !valid {
-		t.Error("TestCenterPointQueryPositive failed. Expected true, but got false")
-	}
-
+	return ps
 }
+
+// func TestAuthCenterPointNegative(t *testing.T) {
+// 	testStartLabel(t)
+// 	defer testEndLabel()
+// 	assert := assert.New(t)
+
+// 	ps := GeneratePoints(100)
+
+// 	tree, _ := NewRTree(ps, 3, sumOfSlice, one)
+
+// 	ps = GeneratePoints(1000)
+
+// 	VO := AuthCenterpoint(ps, tree)
+
+// 	_, valid := VerifyCenterpoint(tree.Digest, len(ps), VO, tree.Fanout)
+
+// 	assert.False(valid)
+
+// }

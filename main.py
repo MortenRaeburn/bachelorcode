@@ -31,7 +31,7 @@ def centerpoint():
 
         res_json = json.dumps(res, default=lambda o: o.__dict__, indent=4, sort_keys=True)
 
-        print(res_json)
+        # print(res_json)
 
         return res_json
   
@@ -52,3 +52,4 @@ def plotResult(point_set, cp):
 if __name__ == '__main__':
     # app.debug = True
     app.run() #go to http://localhost:5000/ to view the page.
+p
