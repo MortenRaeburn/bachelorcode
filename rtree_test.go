@@ -5,7 +5,6 @@ import (
 	"math"
 	"math/rand"
 	"testing"
-	
 
 	"github.com/stretchr/testify/assert"
 )
@@ -39,23 +38,30 @@ func TestAuthCenterPoint(t *testing.T) {
 
 }
 
-// func TestCalcRadonPointSimple(t *testing.T) {
-// 	testStartLabel(t)
-// 	defer testEndLabel()
+func TestHalfspaceCount(t *testing.T) {
+	testStartLabel(t)
+	defer testEndLabel()
 
-// 	assert := assert.New(t)
+	assert := assert.New(t)
 
-// 	data := [4][2]float64{
-// 		{0, 0},
-// 		{2, 2},
-// 		{0, 2},
-// 		{2, 0},
-// 	}
+	data := [][2]float64{
+		{-3, -1},
+		{1, 2},
+		{3, 4},
+		{5, 6},
+	}
 
-// 	radon := calcRadon(data[0], data[1], data[2], data[3])
+	tree, _ := NewRTree(data, 3, sumOfSlice, one)
 
-// 	assert.Equal([2]float64{1, 1}, radon)
-// }
+	l := NewLine(0, 0, 1)
+
+	VO := tree.AuthCountHalfSpace(l)
+
+	valid := verifyHalfSpace(len(data), l, VO, tree.Digest, tree.Fanout)
+
+	assert.True(valid, "Should be true")
+
+}
 
 func TestCalcRadonPoint(t *testing.T) {
 	testStartLabel(t)
@@ -70,11 +76,34 @@ func TestCalcRadonPoint(t *testing.T) {
 		{-1.08, -1.61},
 	}
 
+	l := drawLine(data[1], data[2])
+
+	f := filter(l, data[:])
+	_ = f
+
 	radon := calcRadon(data[0], data[1], data[2], data[3])
 
 	print(radon[0], radon[1])
 
 	assert.True(math.Abs(radon[0]-0.33) < eps && math.Abs(radon[1]-(-0.28)) < eps)
+}
+
+func TestCalcRadonPointSimple(t *testing.T) {
+	testStartLabel(t)
+	defer testEndLabel()
+
+	assert := assert.New(t)
+
+	data := [4][2]float64{
+		{0, 0},
+		{2, 2},
+		{0, 2},
+		{2, 0},
+	}
+
+	radon := calcRadon(data[0], data[1], data[2], data[3])
+
+	assert.Equal([2]float64{1, 1}, radon)
 }
 
 func TestHalfspaceCountTwoNegative(t *testing.T) {
@@ -193,30 +222,6 @@ func TestHalfspaceCountNegative(t *testing.T) {
 	assert.False(valid, "Should be false")
 
 }
-func TestHalfspaceCount(t *testing.T) {
-	testStartLabel(t)
-	defer testEndLabel()
-
-	assert := assert.New(t)
-
-	data := [][2]float64{
-		{-3, -1},
-		{1, 2},
-		{3, 4},
-		{5, 6},
-	}
-
-	tree, _ := NewRTree(data, 3, sumOfSlice, one)
-
-	l := NewLine(0, 0, 1)
-
-	VO := tree.AuthCountHalfSpace(l)
-
-	valid := verifyHalfSpace(len(data), l, VO, tree.Digest, tree.Fanout)
-
-	assert.True(valid, "Should be true")
-
-}
 
 func TestAuthCountPoint(t *testing.T) {
 	testStartLabel(t)
@@ -318,21 +323,21 @@ func GeneratePoints(size int) [][2]float64 {
 	return ps
 }
 
-// func TestAuthCenterPointNegative(t *testing.T) {
-// 	testStartLabel(t)
-// 	defer testEndLabel()
-// 	assert := assert.New(t)
+func TestAuthCenterPointNegative(t *testing.T) {
+	testStartLabel(t)
+	defer testEndLabel()
+	assert := assert.New(t)
 
-// 	ps := GeneratePoints(100)
+	ps := GeneratePoints(100)
 
-// 	tree, _ := NewRTree(ps, 3, sumOfSlice, one)
+	tree, _ := NewRTree(ps, 3, sumOfSlice, one)
 
-// 	ps = GeneratePoints(1000)
+	ps = GeneratePoints(1000)
 
-// 	VO := AuthCenterpoint(ps, tree)
+	VO := AuthCenterpoint(ps, tree)
 
-// 	_, valid := VerifyCenterpoint(tree.Digest, len(ps), VO, tree.Fanout)
+	_, valid := VerifyCenterpoint(tree.Digest, len(ps), VO, tree.Fanout)
 
-// 	assert.False(valid)
+	assert.False(valid)
 
-// }
+}

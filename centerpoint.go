@@ -65,7 +65,7 @@ func AuthCenterpoint(ps [][2]float64, rt *Rtree) *VOCenter {
 	pruneVOs := []*VOPrune{}
 
 	for {
-		vo, newRt, newPs, pruning := prune(ps, rt)
+		vo, newRt, newPs, pruning := prune(ps, *rt)
 
 		if !pruning {
 			break
@@ -97,10 +97,9 @@ func VerifyCenterpoint(digest []byte, initSize int, vo *VOCenter, f int) ([][2]f
 		}
 
 		for _, countVOs := range pruneVO.Prune {
-
 			var LU, LD, RU, RD *VOCount
 
-			sibs := []*Node{}
+			minNs := []*Node{}
 
 			for _, countVO := range countVOs {
 				if len(countVO.Mcs) != 1 {
@@ -131,19 +130,18 @@ func VerifyCenterpoint(digest []byte, initSize int, vo *VOCenter, f int) ([][2]f
 					return nil, false
 				}
 
-				sibs = append(sibs, countVO.Sib...)
+				minNs = append(minNs, countVO.Mcs...)
+				minNs = append(minNs, countVO.Sib...)
 			}
 
 			if LU == nil || LD == nil || RU == nil || RD == nil {
 				return nil, false
 			}
 
-			ls := divideByLabel(sibs)
-			roots := verifyLayers(ls, f)
+			minNs = dedupNodes(minNs)
 
-			if len(roots) != 1 {
-				panic("Roots should always be len 1")
-			}
+			ls := divideByLabel(minNs)
+			roots := verifyLayers(ls, f)
 
 			root := roots[0]
 
@@ -159,21 +157,25 @@ func VerifyCenterpoint(digest []byte, initSize int, vo *VOCenter, f int) ([][2]f
 
 			var lu, ld, ru, rd [2]float64
 			copy(lu[:], LU.Mcs[0].MBR[:])
-			copy(ld[:], LU.Mcs[0].MBR[:])
-			copy(ru[:], LU.Mcs[0].MBR[:])
-			copy(rd[:], LU.Mcs[0].MBR[:])
+			copy(ld[:], LD.Mcs[0].MBR[:])
+			copy(ru[:], RU.Mcs[0].MBR[:])
+			copy(rd[:], RD.Mcs[0].MBR[:])
 
 			radon := calcRadon(lu, ld, ru, rd)
 
 			radonN := createLeaf(radon, one, sumOfSlice)
 			radonN.Label = LU.Mcs[0].Label
 
-			root.replace(LU.Mcs[0], radonN)
-			root.remove(LD.Mcs[0])
-			root.remove(RU.Mcs[0])
-			root.remove(RD.Mcs[0])
+			r1 := root.replace(LU.Mcs[0], radonN)
+			r2 := root.remove(LD.Mcs[0])
+			r3 := root.remove(RU.Mcs[0])
+			r4 := root.remove(RD.Mcs[0])
 
-			digest = roots[0].Hash
+			if !r1 || !r2 || !r3 || !r4 {
+				panic("Removal/Replacement process failed!")
+			}
+
+			digest = root.Hash
 		}
 
 	}
@@ -204,6 +206,22 @@ func VerifyCenterpoint(digest []byte, initSize int, vo *VOCenter, f int) ([][2]f
 	return finalPs, true
 }
 
+func dedupNodes(ns []*Node) []*Node {
+	res := []*Node{}
+
+	nsMap := map[string]*Node{}
+
+	for _, n := range ns {
+		nsMap[n.Label] = n
+	}
+
+	for _, n := range nsMap {
+		res = append(res, n)
+	}
+
+	return res
+}
+
 func cornerContains(l1, l2 *line, mbr [4]float64) bool {
 	contains1 := containsHalfSpace(l1, mbr)
 	contains2 := containsHalfSpace(l2, mbr)
@@ -215,7 +233,9 @@ func cornerContains(l1, l2 *line, mbr [4]float64) bool {
 }
 
 func verifyHalfSpace(size int, l *line, vo *VOCount, digest []byte, f int) bool {
-	for _, n := range vo.Mcs {
+	for i, n := range vo.Mcs {
+		_ = i
+
 		if !containsHalfSpace(l, n.MBR) {
 			return false
 		}
@@ -227,18 +247,19 @@ func verifyHalfSpace(size int, l *line, vo *VOCount, digest []byte, f int) bool 
 		return false
 	}
 
-	if (size+2)/3-1 >= count {
-		return false
-	}
+	_ = count
+	// if (size+2)/3-1 <= count {
+	// 	return false
+	// }
 
 	return true
 }
 
-func prune(ps [][2]float64, rt *Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
+func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 	center := centerpoint(ps)
 
 	if center == nil {
-		return nil, rt, ps, false
+		return nil, &rt, ps, false
 	}
 
 	vo := new(VOPrune)
@@ -269,6 +290,7 @@ func prune(ps [][2]float64, rt *Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 
 		found := false
 
+		// TODO distribute points as equally as possible
 		switch true {
 		case cornerContains(center.L, center.U, mbr):
 			found = true
@@ -299,7 +321,7 @@ func prune(ps [][2]float64, rt *Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 	}
 
 	if len(_ps) == 0 {
-		return nil, rt, ps, false
+		return nil, &rt, ps, false
 	}
 
 	done := func(LU, LD, RU, RD [][2]float64) bool {
@@ -307,7 +329,7 @@ func prune(ps [][2]float64, rt *Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 	}
 
 	if done(LU, LD, RU, RD) {
-		return nil, rt, ps, false
+		return nil, &rt, ps, false
 	}
 
 	ps = _ps
@@ -371,7 +393,7 @@ func prune(ps [][2]float64, rt *Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 		rt.Root.remove(rdN)
 	}
 
-	return vo, rt, ps, true
+	return vo, &rt, ps, true
 
 }
 
@@ -401,6 +423,7 @@ func calcRadon(lu, ld, ru, rd [2]float64) [2]float64 {
 	ps = pointsSort(ps)
 
 	return ps[1]
+
 }
 
 func drawLine(p1, p2 [2]float64) *line {
@@ -410,7 +433,7 @@ func drawLine(p1, p2 [2]float64) *line {
 
 	l.B = p1[1] - l.M*p1[0]
 	l.Dir = 0
-	l.Sign = true
+	l.Sign = halfSpaceSign(l)
 
 	return l
 }
@@ -435,7 +458,7 @@ func filter(l *line, ps [][2]float64) [][2]float64 {
 			continue
 		}
 
-		filterPs = append(filterPs, lp)
+		filterPs = append(filterPs, p)
 	}
 
 	return filterPs

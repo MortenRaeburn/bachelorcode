@@ -28,6 +28,14 @@ type Node struct {
 	MBR     [4]float64
 }
 
+func (n *Node) Clone() *Node {
+	newN := *n
+	copy(newN.Ps, n.Ps)
+	copy(newN.Hash, n.Hash)
+
+	return &newN
+}
+
 // NewRTree ???
 // ??? Needs a certain amount of elements to work - around fanout
 // ??? elems should be entries
@@ -156,9 +164,7 @@ func createInternal(ns []*Node, agg func(aggs ...int) int) *Node {
 	internal.Agg = agg
 	internal.MBR = ns[0].MBR
 
-	for _, n := range ns {
-		internal.Ps = append(internal.Ps, n)
-	}
+	internal.Ps = append(internal.Ps, ns...)
 
 	internal.CalcMBR()
 	internal.CalcAgg()
@@ -275,17 +281,21 @@ func (n *Node) authCountAreaAux(area [4]float64) *VOCount {
 	vo.Sib = []*Node{}
 
 	for i, c := range n.Ps {
+		_ = i
+
 		if !intersectsArea(area, c.MBR) {
-			vo.Sib = append(vo.Sib, n.Ps[i])
+			cc := c.Clone()
+			vo.Sib = append(vo.Sib, cc)
 			continue
 		}
 
 		if containsArea(area, c.MBR) {
-			vo.Mcs = append(vo.Mcs, n.Ps[i])
+			cc := c.Clone()
+			vo.Mcs = append(vo.Mcs, cc)
 			continue
 		}
 
-		voChild := n.Ps[i].authCountAreaAux(area)
+		voChild := c.authCountAreaAux(area)
 
 		vo.Mcs = append(vo.Mcs, voChild.Mcs...)
 		vo.Sib = append(vo.Sib, voChild.Sib...)
@@ -305,17 +315,21 @@ func (n *Node) authCountHalfSpaceAux(l *line) *VOCount {
 	vo.Sib = []*Node{}
 
 	for i, c := range n.Ps {
+		_ = i
+
 		if !intersectsHalfSpace(l, c.MBR) {
-			vo.Sib = append(vo.Sib, n.Ps[i])
+			cc := c.Clone()
+			vo.Sib = append(vo.Sib, cc)
 			continue
 		}
 
 		if containsHalfSpace(l, c.MBR) {
-			vo.Mcs = append(vo.Mcs, n.Ps[i])
+			cc := c.Clone()
+			vo.Mcs = append(vo.Mcs, cc)
 			continue
 		}
 
-		voChild := n.Ps[i].authCountHalfSpaceAux(l)
+		voChild := c.authCountHalfSpaceAux(l)
 
 		vo.Mcs = append(vo.Mcs, voChild.Mcs...)
 		vo.Sib = append(vo.Sib, voChild.Sib...)
@@ -329,10 +343,6 @@ func AuthCountVerify(vo *VOCount, digest []byte, f int) (int, bool) {
 	ns := append(vo.Mcs, vo.Sib...)
 	ls := divideByLabel(ns)
 	roots := verifyLayers(ls, f)
-
-	if len(roots) != 1 {
-		return -1, false
-	}
 
 	root := roots[0]
 
@@ -355,16 +365,29 @@ func AuthCountVerify(vo *VOCount, digest []byte, f int) (int, bool) {
 	return count, true
 }
 
-func verifyLayers(ls [][]*Node, f int) []*Node {
+func verifyLayers(ls map[int][]*Node, f int) []*Node {
+	ks := []int{}
+	for k := range ls {
+		ks = append(ks, k)
+	}
+	sort.Ints(ks)
+
 	calc := []*Node{}
 
-	if len(ls) != 1 {
-		calc = verifyLayers(ls[1:], f)
+	last := len(ks) - 1
+	for i := ks[last]; i > 0; i-- {
+		l := []*Node{}
+		if ls[i] != nil {
+			l = append(l, ls[i]...)
+		}
+
+		l = append(l, calc...)
+		l = dedupNodes(l)
+
+		calc = calcNext(l, f)
 	}
 
-	l := append(ls[0], calc...)
-
-	return calcNext(l, f)
+	return calc
 }
 
 func calcNext(ns []*Node, f int) []*Node {
@@ -399,7 +422,7 @@ func calcNext(ns []*Node, f int) []*Node {
 	return res
 }
 
-func divideByLabel(ns []*Node) [][]*Node {
+func divideByLabel(ns []*Node) map[int][]*Node {
 	_ns := ns
 
 	less := func(i, j int) bool {
@@ -408,7 +431,7 @@ func divideByLabel(ns []*Node) [][]*Node {
 
 	sort.Slice(_ns, less)
 
-	res := [][]*Node{}
+	res := map[int][]*Node{}
 
 	l := len(_ns[0].Label)
 	i := 0
@@ -418,11 +441,12 @@ func divideByLabel(ns []*Node) [][]*Node {
 			continue
 		}
 
-		res = append(res, _ns[i:j])
+		res[l] = _ns[i:j]
 		l = len(n.Label)
 		i = j
 	}
-	res = append(res, _ns[i:])
+
+	res[l] = _ns[i:]
 
 	return res
 }
