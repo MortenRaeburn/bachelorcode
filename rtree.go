@@ -119,8 +119,8 @@ func (n *Node) remove(t *Node) bool {
 			n.Ps = append(n.Ps[:i], n.Ps[i+1:]...)
 
 			n.CalcAgg()
-			n.CalcHash()
 			n.CalcMBR()
+			n.CalcHash()
 			return true
 		}
 
@@ -128,8 +128,8 @@ func (n *Node) remove(t *Node) bool {
 
 		if done {
 			n.CalcAgg()
-			n.CalcHash()
 			n.CalcMBR()
+			n.CalcHash()
 			return true
 		}
 	}
@@ -141,16 +141,16 @@ func (n *Node) replace(t, s *Node) bool {
 	for i, child := range n.Ps {
 		if child.Label == t.Label {
 			n.Ps[i] = s
-			n.CalcHash()
 			n.CalcMBR()
+			n.CalcHash()
 			return true
 		}
 
 		done := child.replace(t, s)
 
 		if done {
-			n.CalcHash()
 			n.CalcMBR()
+			n.CalcHash()
 			return true
 		}
 	}
@@ -177,10 +177,10 @@ func (n *Node) CalcMBR() {
 	for _, p := range n.Ps {
 		mbr := n.MBR
 
-		mbr[0] = math.Min(mbr[0], p.MBR[0])
-		mbr[1] = math.Max(mbr[1], p.MBR[1])
-		mbr[2] = math.Max(mbr[2], p.MBR[2])
-		mbr[3] = math.Min(mbr[3], p.MBR[3])
+		mbr[0] = roundFloat(math.Min(mbr[0], p.MBR[0]), eps)
+		mbr[1] = roundFloat(math.Max(mbr[1], p.MBR[1]), eps)
+		mbr[2] = roundFloat(math.Max(mbr[2], p.MBR[2]), eps)
+		mbr[3] = roundFloat(math.Min(mbr[3], p.MBR[3]), eps)
 
 		n.MBR = mbr
 	}
@@ -200,19 +200,18 @@ func (n *Node) CalcHash() {
 	hashVal := []byte{}
 
 	for _, c := range n.Ps {
-		hashVal = append(hashVal, []byte(strconv.Itoa(c.Value))...)
-		hashVal = append(hashVal, c.Hash...)
+		agg := []byte(strconv.Itoa(c.Value))
 
 		var mbr []byte
-
 		for _, corner := range c.MBR {
 			var buf [8]byte
 			binary.BigEndian.PutUint64(buf[:], math.Float64bits(corner))
-
 			mbr = append(mbr, buf[:]...)
 		}
 
+		hashVal = append(hashVal, agg...)
 		hashVal = append(hashVal, mbr...)
+		hashVal = append(hashVal, c.Hash...)
 	}
 
 	hash := sha256.Sum256(hashVal)
@@ -244,11 +243,6 @@ func (t *Rtree) Search(area [4]float64) []*Node {
 
 func (n *Node) searchAux(area [4]float64) []*Node {
 	acc := []*Node{}
-
-	area[0] -= eps
-	area[1] += eps
-	area[2] += eps
-	area[3] -= eps
 
 	for _, c := range n.Ps {
 		if !intersectsArea(area, c.MBR) {
@@ -298,7 +292,14 @@ func (n *Node) authCountAreaAux(area [4]float64) *VOCount {
 		voChild := c.authCountAreaAux(area)
 
 		vo.Mcs = append(vo.Mcs, voChild.Mcs...)
-		vo.Sib = append(vo.Sib, voChild.Sib...)
+
+		if len(voChild.Mcs) != 0 {
+			vo.Sib = append(vo.Sib, voChild.Sib...)
+			continue
+		}
+
+		vo.Sib = append(vo.Sib, c)
+
 	}
 
 	return vo
@@ -332,7 +333,13 @@ func (n *Node) authCountHalfSpaceAux(l *line) *VOCount {
 		voChild := c.authCountHalfSpaceAux(l)
 
 		vo.Mcs = append(vo.Mcs, voChild.Mcs...)
-		vo.Sib = append(vo.Sib, voChild.Sib...)
+
+		if len(voChild.Mcs) != 0 {
+			vo.Sib = append(vo.Sib, voChild.Sib...)
+			continue
+		}
+
+		vo.Sib = append(vo.Sib, c)
 	}
 
 	return vo
@@ -372,51 +379,69 @@ func verifyLayers(ls map[int][]*Node, f int) []*Node {
 	}
 	sort.Ints(ks)
 
-	calc := []*Node{}
+	calc := map[string]*Node{}
 
 	last := len(ks) - 1
 	for i := ks[last]; i > 0; i-- {
-		l := []*Node{}
-		if ls[i] != nil {
-			l = append(l, ls[i]...)
+		l := map[string]*Node{}
+
+		for _, n := range ls[i] {
+			l[n.Label] = n
 		}
 
-		l = append(l, calc...)
-		l = dedupNodes(l)
+		for lab, n := range calc {
+			l[lab] = n
+		}
 
 		calc = calcNext(l, f)
 	}
 
-	return calc
-}
-
-func calcNext(ns []*Node, f int) []*Node {
 	res := []*Node{}
 
+	for _, n := range calc {
+		res = append(res, n)
+	}
+
+	return res
+}
+
+func calcNext(ns map[string]*Node, f int) map[string]*Node {
+	res := map[string]*Node{}
+
 	for len(ns) != 0 {
-		n := ns[0]
+		var n *Node
+
+		for _, node := range ns {
+			n = node
+			break
+		}
+
 		parLabel := n.Label[:len(n.Label)-1]
 
-		nextNs := ns
-		ss := []*Node{}
+		ss := map[string]*Node{}
 		for i := 0; i < f; i++ {
 			iStr := strconv.Itoa(i)
 
 			sLabel := parLabel + iStr
-			sNode, j := labelSearch(ns, sLabel)
+			sNode := ns[sLabel]
 
 			if sNode == nil {
 				continue
 			}
 
-			nextNs = append(nextNs[:j], nextNs[j+1:]...)
-			ss = append(ss, sNode)
+			delete(ns, sLabel)
+			ss[sLabel] = sNode
 		}
 
-		ns = nextNs
-		internal := createInternal(ss, sumOfSlice)
+		internalNs := []*Node{}
+
+		for _, n := range ss {
+			internalNs = append(internalNs, n)
+		}
+
+		internal := createInternal(internalNs, sumOfSlice)
 		internal.Label = parLabel
-		res = append(res, internal)
+		res[internal.Label] = internal
 	}
 
 	return res
@@ -452,7 +477,17 @@ func divideByLabel(ns []*Node) map[int][]*Node {
 }
 
 func intersectsArea(x, y [4]float64) bool {
-	return x[0] <= y[2] && x[2] >= y[0] && x[3] <= y[1] && x[1] >= y[3] // Proof by contradiction, any of these cases mean that x and y cannot intersect; so if none exist, then they intersect: https://stackoverflow.com/a/306332
+	x[0] -= eps
+	x[1] += eps
+	x[2] += eps
+	x[3] -= eps
+
+	y[0] -= eps
+	y[1] += eps
+	y[2] += eps
+	y[3] -= eps
+
+	return x[0] < y[2] && x[2] > y[0] && x[3] < y[1] && x[1] > y[3] // Proof by contradiction, any of these cases mean that x and y cannot intersect; so if none exist, then they intersect: https://stackoverflow.com/a/306332
 }
 
 func containsArea(outer, inner [4]float64) bool {

@@ -138,8 +138,6 @@ func VerifyCenterpoint(digest []byte, initSize int, vo *VOCenter, f int) ([][2]f
 				return nil, false
 			}
 
-			minNs = dedupNodes(minNs)
-
 			ls := divideByLabel(minNs)
 			roots := verifyLayers(ls, f)
 
@@ -176,6 +174,7 @@ func VerifyCenterpoint(digest []byte, initSize int, vo *VOCenter, f int) ([][2]f
 			}
 
 			digest = root.Hash
+			size = root.Value
 		}
 
 	}
@@ -212,6 +211,8 @@ func dedupNodes(ns []*Node) []*Node {
 	nsMap := map[string]*Node{}
 
 	for _, n := range ns {
+		i := nsMap[n.Label]
+		_ = i
 		nsMap[n.Label] = n
 	}
 
@@ -352,6 +353,11 @@ func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 			rt.AuthCountPoint(rd),
 		}
 
+		asd, qwe := AuthCountVerify(prune[1], rt.Root.Hash, 3)
+		if !qwe || asd != 1 {
+			panic("WRONG!")
+		}
+
 		vo.Prune = append(vo.Prune, prune)
 
 		luN := rt.Search([4]float64{
@@ -391,6 +397,8 @@ func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 		rt.Root.remove(ldN)
 		rt.Root.remove(ruN)
 		rt.Root.remove(rdN)
+
+		rt.Digest = rt.Root.Hash
 	}
 
 	return vo, &rt, ps, true

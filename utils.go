@@ -1,5 +1,7 @@
 package main
 
+import "math"
+
 var eps float64 = 0.00001
 
 type line struct {
@@ -111,4 +113,9 @@ func labelSearch(ns []*Node, l string) (*Node, int) {
 	}
 
 	return nil, -1
+}
+
+func roundFloat(x, prec float64) float64{
+	recPrec := 1/prec
+	return math.Floor(x*recPrec)/recPrec
 }
