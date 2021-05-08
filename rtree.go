@@ -126,12 +126,18 @@ func (n *Node) remove(t *Node) bool {
 
 		done := child.remove(t)
 
-		if done {
-			n.CalcAgg()
-			n.CalcMBR()
-			n.CalcHash()
-			return true
+		if !done {
+			continue
 		}
+
+		if len(child.Ps) == 0 {
+			n.Ps = append(n.Ps[:i], n.Ps[i+1:]...)
+		}
+
+		n.CalcAgg()
+		n.CalcMBR()
+		n.CalcHash()
+		return true
 	}
 
 	return false
@@ -148,11 +154,17 @@ func (n *Node) replace(t, s *Node) bool {
 
 		done := child.replace(t, s)
 
-		if done {
-			n.CalcMBR()
-			n.CalcHash()
-			return true
+		if !done {
+			continue
 		}
+
+		if len(child.Ps) == 0 {
+			panic("Should never happen!")
+		}
+
+		n.CalcMBR()
+		n.CalcHash()
+		return true
 	}
 
 	return false
@@ -166,17 +178,21 @@ func createInternal(ns []*Node, agg func(aggs ...int) int) *Node {
 
 	internal.Ps = append(internal.Ps, ns...)
 
-	internal.CalcMBR()
 	internal.CalcAgg()
+	internal.CalcMBR()
 	internal.CalcHash()
 
 	return internal
 }
 
 func (n *Node) CalcMBR() {
-	for _, p := range n.Ps {
-		mbr := n.MBR
+	if len(n.Ps) == 0 {
+		return
+	}
 
+	mbr := n.Ps[0].MBR
+
+	for _, p := range n.Ps {
 		mbr[0] = roundFloat(math.Min(mbr[0], p.MBR[0]), eps)
 		mbr[1] = roundFloat(math.Max(mbr[1], p.MBR[1]), eps)
 		mbr[2] = roundFloat(math.Max(mbr[2], p.MBR[2]), eps)
@@ -266,7 +282,13 @@ func (t *Rtree) AuthCountPoint(p [2]float64) *VOCount {
 
 // AuthCountArea ???
 func (t *Rtree) AuthCountArea(area [4]float64) *VOCount {
-	return t.Root.authCountAreaAux(area)
+	vo := t.Root.authCountAreaAux(area)
+
+	if len(vo.Mcs) == 0 {
+		panic("MCS should never be 0")
+	}
+
+	return vo
 }
 
 func (n *Node) authCountAreaAux(area [4]float64) *VOCount {
@@ -298,7 +320,8 @@ func (n *Node) authCountAreaAux(area [4]float64) *VOCount {
 			continue
 		}
 
-		vo.Sib = append(vo.Sib, c)
+		cc := c.Clone()
+		vo.Sib = append(vo.Sib, cc)
 
 	}
 
@@ -339,7 +362,8 @@ func (n *Node) authCountHalfSpaceAux(l *line) *VOCount {
 			continue
 		}
 
-		vo.Sib = append(vo.Sib, c)
+		cc := c.Clone()
+		vo.Sib = append(vo.Sib, cc)
 	}
 
 	return vo
@@ -356,8 +380,10 @@ func AuthCountVerify(vo *VOCount, digest []byte, f int) (int, bool) {
 	if len(digest) != len(root.Hash) {
 		return -1, false
 	}
-
 	for i := range digest {
+		// rtHash := root.Hash[i]
+		// rtDigest := digest[i]
+
 		if root.Hash[i] != digest[i] {
 			return -1, false
 		}
@@ -379,69 +405,51 @@ func verifyLayers(ls map[int][]*Node, f int) []*Node {
 	}
 	sort.Ints(ks)
 
-	calc := map[string]*Node{}
+	calc := []*Node{}
 
 	last := len(ks) - 1
 	for i := ks[last]; i > 0; i-- {
-		l := map[string]*Node{}
-
-		for _, n := range ls[i] {
-			l[n.Label] = n
+		l := []*Node{}
+		if ls[i] != nil {
+			l = append(l, ls[i]...)
 		}
 
-		for lab, n := range calc {
-			l[lab] = n
-		}
+		l = append(l, calc...)
+		l = dedupNodes(l)
 
 		calc = calcNext(l, f)
 	}
 
-	res := []*Node{}
-
-	for _, n := range calc {
-		res = append(res, n)
-	}
-
-	return res
+	return calc
 }
 
-func calcNext(ns map[string]*Node, f int) map[string]*Node {
-	res := map[string]*Node{}
+func calcNext(ns []*Node, f int) []*Node {
+	res := []*Node{}
 
 	for len(ns) != 0 {
-		var n *Node
-
-		for _, node := range ns {
-			n = node
-			break
-		}
-
+		n := ns[0]
 		parLabel := n.Label[:len(n.Label)-1]
 
-		ss := map[string]*Node{}
+		nextNs := ns
+		ss := []*Node{}
 		for i := 0; i < f; i++ {
 			iStr := strconv.Itoa(i)
 
 			sLabel := parLabel + iStr
-			sNode := ns[sLabel]
+			sNode, j := labelSearch(ns, sLabel)
 
 			if sNode == nil {
 				continue
 			}
 
-			delete(ns, sLabel)
-			ss[sLabel] = sNode
+			nextNs = append(nextNs[:j], nextNs[j+1:]...)
+			ss = append(ss, sNode)
 		}
 
-		internalNs := []*Node{}
-
-		for _, n := range ss {
-			internalNs = append(internalNs, n)
-		}
-
-		internal := createInternal(internalNs, sumOfSlice)
+		ns = nextNs
+		internal := createInternal(ss, sumOfSlice)
 		internal.Label = parLabel
-		res[internal.Label] = internal
+		res = append(res, internal)
 	}
 
 	return res

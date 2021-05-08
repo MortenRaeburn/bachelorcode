@@ -30,9 +30,11 @@ func TestAuthCenterPoint(t *testing.T) {
 
 	tree, _ := NewRTree(ps, 3, sumOfSlice, one)
 
+	digest := tree.Digest
+
 	VO := AuthCenterpoint(ps, tree)
 
-	_, valid := VerifyCenterpoint(tree.Digest, len(ps), VO, tree.Fanout)
+	_, valid := VerifyCenterpoint(digest, len(ps), VO, tree.Fanout)
 
 	assert.True(valid)
 
@@ -255,35 +257,35 @@ func TestAuthCountPoint(t *testing.T) {
 
 }
 
-func TestPositive(t *testing.T) {
-	testStartLabel(t)
-	defer testEndLabel()
+// func TestPositive(t *testing.T) {
+// 	testStartLabel(t)
+// 	defer testEndLabel()
 
-	data := [][2]float64{
-		{1, 2},
-		{3, 4},
-		{5, 6},
-		{7, 8},
-		{9, 10},
-		{11, 12},
-		{13, 14},
-		{15, 16},
-		{17, 18},
-		{19, 20},
-		{21, 22},
-		{23, 24},
-	}
+// 	data := [][2]float64{
+// 		{1, 2},
+// 		{3, 4},
+// 		{5, 6},
+// 		{7, 8},
+// 		{9, 10},
+// 		{11, 12},
+// 		{13, 14},
+// 		{15, 16},
+// 		{17, 18},
+// 		{19, 20},
+// 		{21, 22},
+// 		{23, 24},
+// 	}
 
-	fmt.Println("???")
-	tree, _ := NewRTree(data, 3, sumOfSlice, one)
+// 	fmt.Println("???")
+// 	tree, _ := NewRTree(data, 3, sumOfSlice, one)
 
-	VO := tree.AuthCountArea([4]float64{15, 1, 20, 20})
-	_ = VO
-	fmt.Println(tree)
+// 	VO := tree.AuthCountArea([4]float64{15, 1, 20, 20})
+// 	_ = VO
+// 	fmt.Println(tree)
 
-	// assert := assert.New(t)
+// 	// assert := assert.New(t)
 
-}
+// }
 
 func TestCount(t *testing.T) {
 	testStartLabel(t)
@@ -323,21 +325,21 @@ func GeneratePoints(size int) [][2]float64 {
 	return ps
 }
 
-func TestAuthCenterPointNegative(t *testing.T) {
-	testStartLabel(t)
-	defer testEndLabel()
-	assert := assert.New(t)
+// func TestAuthCenterPointNegative(t *testing.T) {
+// 	testStartLabel(t)
+// 	defer testEndLabel()
+// 	assert := assert.New(t)
 
-	ps := GeneratePoints(100)
+// 	ps := GeneratePoints(100)
 
-	tree, _ := NewRTree(ps, 3, sumOfSlice, one)
+// 	tree, _ := NewRTree(ps, 3, sumOfSlice, one)
 
-	ps = GeneratePoints(1000)
+// 	ps = GeneratePoints(1000)
 
-	VO := AuthCenterpoint(ps, tree)
+// 	VO := AuthCenterpoint(ps, tree)
 
-	_, valid := VerifyCenterpoint(tree.Digest, len(ps), VO, tree.Fanout)
+// 	_, valid := VerifyCenterpoint(tree.Digest, len(ps), VO, tree.Fanout)
 
-	assert.False(valid)
+// 	assert.False(valid)
 
-}
+// }

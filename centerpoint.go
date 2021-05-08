@@ -274,6 +274,9 @@ func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 	vo.DCount = rt.AuthCountHalfSpace(center.D)
 	vo.RCount = rt.AuthCountHalfSpace(center.R)
 
+	verL := verifyHalfSpace(200, vo.L, vo.LCount, rt.Digest, 3)
+	_ = verL
+
 	LU := [][2]float64{}
 	LD := [][2]float64{}
 	RU := [][2]float64{}
@@ -353,11 +356,6 @@ func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 			rt.AuthCountPoint(rd),
 		}
 
-		asd, qwe := AuthCountVerify(prune[1], rt.Root.Hash, 3)
-		if !qwe || asd != 1 {
-			panic("WRONG!")
-		}
-
 		vo.Prune = append(vo.Prune, prune)
 
 		luN := rt.Search([4]float64{
@@ -389,7 +387,7 @@ func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 		})[0]
 
 		radon := calcRadon(lu, ld, ru, rd)
-		ps = append(ps, radon)
+		//ps = append(ps, radon)
 		radonN := createLeaf(radon, one, sumOfSlice)
 		radonN.Label = luN.Label
 
