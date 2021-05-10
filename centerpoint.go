@@ -224,10 +224,10 @@ func dedupNodes(ns []*Node) []*Node {
 }
 
 func cornerContains(l1, l2 *line, mbr [4]float64) bool {
-	contains1 := containsHalfSpace(l1, mbr)
-	contains2 := containsHalfSpace(l2, mbr)
+	contains1 := intersectsHalfSpace(l1, mbr)
+	contains2 := intersectsHalfSpace(l2, mbr)
 
-	if !contains1 || !contains2 {
+	if contains1 || contains2 {
 		return false
 	}
 	return true
@@ -242,15 +242,15 @@ func verifyHalfSpace(size int, l *line, vo *VOCount, digest []byte, f int) bool 
 		}
 	}
 
-	count, valid := AuthCountVerify(vo, digest, f)
+	_, valid := AuthCountVerify(vo, digest, f)
 
 	if !valid {
 		return false
 	}
 
-	if size-(size+2)/3 > count {
-		return false
-	}
+	// if size-(size+2)/3 > count {
+	// 	return false
+	// }
 
 	return true
 }
@@ -272,9 +272,6 @@ func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 	vo.UCount = rt.AuthCountHalfSpace(center.U)
 	vo.DCount = rt.AuthCountHalfSpace(center.D)
 	vo.RCount = rt.AuthCountHalfSpace(center.R)
-
-	verL := verifyHalfSpace(200, vo.L, vo.LCount, rt.Digest, 3)
-	_ = verL
 
 	LU := [][2]float64{}
 	LD := [][2]float64{}

@@ -28,12 +28,12 @@ type Node struct {
 	MBR     [4]float64
 }
 
-func (n *Node) Clone() *Node {
+func (n *Node) Clone() Node {
 	newN := *n
 	copy(newN.Ps, n.Ps)
 	copy(newN.Hash, n.Hash)
 
-	return &newN
+	return newN
 }
 
 // NewRTree ???
@@ -301,13 +301,13 @@ func (n *Node) authCountAreaAux(area [4]float64) *VOCount {
 
 		if !intersectsArea(area, c.MBR) {
 			cc := c.Clone()
-			vo.Sib = append(vo.Sib, cc)
+			vo.Sib = append(vo.Sib, &cc)
 			continue
 		}
 
 		if containsArea(area, c.MBR) {
 			cc := c.Clone()
-			vo.Mcs = append(vo.Mcs, cc)
+			vo.Mcs = append(vo.Mcs, &cc)
 			continue
 		}
 
@@ -321,7 +321,7 @@ func (n *Node) authCountAreaAux(area [4]float64) *VOCount {
 		}
 
 		cc := c.Clone()
-		vo.Sib = append(vo.Sib, cc)
+		vo.Sib = append(vo.Sib, &cc)
 
 	}
 
@@ -343,13 +343,13 @@ func (n *Node) authCountHalfSpaceAux(l *line) *VOCount {
 
 		if !intersectsHalfSpace(l, c.MBR) {
 			cc := c.Clone()
-			vo.Sib = append(vo.Sib, cc)
+			vo.Sib = append(vo.Sib, &cc)
 			continue
 		}
 
 		if containsHalfSpace(l, c.MBR) {
 			cc := c.Clone()
-			vo.Mcs = append(vo.Mcs, cc)
+			vo.Mcs = append(vo.Mcs, &cc)
 			continue
 		}
 
@@ -363,7 +363,7 @@ func (n *Node) authCountHalfSpaceAux(l *line) *VOCount {
 		}
 
 		cc := c.Clone()
-		vo.Sib = append(vo.Sib, cc)
+		vo.Sib = append(vo.Sib, &cc)
 	}
 
 	return vo
