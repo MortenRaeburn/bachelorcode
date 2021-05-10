@@ -97,30 +97,15 @@ func VerifyCenterpoint(digest []byte, initSize int, vo *VOCenter, f int) ([][2]f
 		}
 
 		for _, countVOs := range pruneVO.Prune {
-			var LU, LD, RU, RD *VOCount
+			LU := countVOs[0]
+			LD := countVOs[1]
+			RU := countVOs[2]
+			RD := countVOs[3]
 
 			minNs := []*Node{}
 
 			for _, countVO := range countVOs {
 				if len(countVO.Mcs) != 1 {
-					return nil, false
-				}
-
-				containsLU := cornerContains(pruneVO.L, pruneVO.U, countVO.Mcs[0].MBR)
-				containsLD := cornerContains(pruneVO.L, pruneVO.D, countVO.Mcs[0].MBR)
-				containsRU := cornerContains(pruneVO.R, pruneVO.U, countVO.Mcs[0].MBR)
-				containsRD := cornerContains(pruneVO.R, pruneVO.D, countVO.Mcs[0].MBR)
-
-				switch true {
-				case containsLU:
-					LU = countVO
-				case containsLD:
-					LD = countVO
-				case containsRU:
-					RU = countVO
-				case containsRD:
-					RD = countVO
-				default:
 					return nil, false
 				}
 
@@ -134,7 +119,12 @@ func VerifyCenterpoint(digest []byte, initSize int, vo *VOCenter, f int) ([][2]f
 				minNs = append(minNs, countVO.Sib...)
 			}
 
-			if LU == nil || LD == nil || RU == nil || RD == nil {
+			containsLU := cornerContains(pruneVO.L, pruneVO.U, LU.Mcs[0].MBR)
+			containsLD := cornerContains(pruneVO.L, pruneVO.D, LD.Mcs[0].MBR)
+			containsRU := cornerContains(pruneVO.R, pruneVO.U, RU.Mcs[0].MBR)
+			containsRD := cornerContains(pruneVO.R, pruneVO.D, RD.Mcs[0].MBR)
+
+			if !containsLU || !containsLD || !containsRU || !containsRD {
 				return nil, false
 			}
 
@@ -289,27 +279,36 @@ func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 			p[1],
 		}
 
-		found := false
+		var dest *[][2]float64
 
-		// TODO distribute points as equally as possible
-		switch true {
-		case cornerContains(center.L, center.U, mbr):
-			found = true
-			LU = append(LU, p)
-		case cornerContains(center.L, center.D, mbr):
-			found = true
-			LD = append(LD, p)
-		case cornerContains(center.R, center.U, mbr):
-			found = true
-			RU = append(RU, p)
-		case cornerContains(center.R, center.D, mbr):
-			found = true
-			RD = append(RD, p)
+
+		if cornerContains(center.L, center.U, mbr) {
+			dest = &LU
 		}
 
-		if !found {
+		if cornerContains(center.L, center.D, mbr) {
+			if dest == nil || len(*dest) > len(LD){
+				dest = &LD
+			}
+		}
+
+		if cornerContains(center.R, center.U, mbr) {
+			if dest == nil || len(*dest) > len(RU){
+				dest = &RU
+			}
+		}
+
+		if cornerContains(center.R, center.D, mbr) {
+			if dest == nil || len(*dest) > len(RD){
+				dest = &RD
+			}
+		}
+
+		if dest == nil {
 			continue
 		}
+		
+		*dest = append(*dest, p)
 
 		i, found := pointSearch(_ps, p)
 
