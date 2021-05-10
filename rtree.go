@@ -132,6 +132,10 @@ func (n *Node) remove(t *Node) bool {
 
 		if len(child.Ps) == 0 {
 			n.Ps = append(n.Ps[:i], n.Ps[i+1:]...)
+		} else if len(child.Ps) == 1 {
+			label := child.Label
+			n.Ps[i] = child.Ps[0]
+			n.Ps[i].Label = label
 		}
 
 		n.CalcAgg()
@@ -171,6 +175,10 @@ func (n *Node) replace(t, s *Node) bool {
 }
 
 func createInternal(ns []*Node, agg func(aggs ...int) int) *Node {
+	if len(ns) == 1 {
+		return ns[0]
+	}
+	
 	internal := new(Node)
 	internal.Ps = []*Node{}
 	internal.Agg = agg
@@ -193,10 +201,10 @@ func (n *Node) CalcMBR() {
 	mbr := n.Ps[0].MBR
 
 	for _, p := range n.Ps {
-		mbr[0] = roundFloat(math.Min(mbr[0], p.MBR[0]), eps)
-		mbr[1] = roundFloat(math.Max(mbr[1], p.MBR[1]), eps)
-		mbr[2] = roundFloat(math.Max(mbr[2], p.MBR[2]), eps)
-		mbr[3] = roundFloat(math.Min(mbr[3], p.MBR[3]), eps)
+		mbr[0] = math.Min(mbr[0], p.MBR[0])
+		mbr[1] = math.Max(mbr[1], p.MBR[1])
+		mbr[2] = math.Max(mbr[2], p.MBR[2])
+		mbr[3] = math.Min(mbr[3], p.MBR[3])
 
 		n.MBR = mbr
 	}

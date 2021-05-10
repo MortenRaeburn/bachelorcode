@@ -49,7 +49,7 @@ func TestAuthCenterPoint(t *testing.T) {
 
 	rand.Seed(69)
 
-	ps := GeneratePoints(200)
+	ps := GeneratePoints(1000)
 
 	tree, _ := NewRTree(ps, 3, sumOfSlice, one)
 
@@ -88,23 +88,23 @@ func TestAuthCenterPoint(t *testing.T) {
 // 	assert.True(math.Abs(radon[0]-0.33) < eps && math.Abs(radon[1]-(-0.28)) < eps)
 // }
 
-func TestCalcRadonPointSimple(t *testing.T) {
-	testStartLabel(t)
-	defer testEndLabel()
+// func TestCalcRadonPointSimple(t *testing.T) {
+// 	testStartLabel(t)
+// 	defer testEndLabel()
 
-	assert := assert.New(t)
+// 	assert := assert.New(t)
 
-	data := [4][2]float64{
-		{0, 0},
-		{2, 2},
-		{0, 2},
-		{2, 0},
-	}
+// 	data := [4][2]float64{
+// 		{0, 0},
+// 		{2, 2},
+// 		{0, 2},
+// 		{2, 0},
+// 	}
 
-	radon := calcRadon(data[0], data[1], data[2], data[3])
+// 	radon := calcRadon(data[0], data[1], data[2], data[3])
 
-	assert.Equal([2]float64{1, 1}, radon)
-}
+// 	assert.Equal([2]float64{1, 1}, radon)
+// }
 
 // func TestHalfspaceCountTwoNegative(t *testing.T) {
 // 	testStartLabel(t)

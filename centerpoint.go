@@ -332,6 +332,12 @@ func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 		return nil, &rt, ps, false
 	}
 
+	// debug
+	list := rt.List()
+	_ = list
+	asd := ps
+	_ = asd
+
 	ps = _ps
 
 	for {
@@ -344,15 +350,6 @@ func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 		ld, LD = LD[0], LD[1:]
 		ru, RU = RU[0], RU[1:]
 		rd, RD = RD[0], RD[1:]
-
-		prune := [4]*VOCount{
-			rt.AuthCountPoint(lu),
-			rt.AuthCountPoint(ld),
-			rt.AuthCountPoint(ru),
-			rt.AuthCountPoint(rd),
-		}
-
-		vo.Prune = append(vo.Prune, prune)
 
 		luN := rt.Search([4]float64{
 			lu[0],
@@ -382,8 +379,23 @@ func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 			rd[1],
 		})[0]
 
+		prune := [4]*VOCount{
+			rt.AuthCountPoint(lu),
+			rt.AuthCountPoint(ld),
+			rt.AuthCountPoint(ru),
+			rt.AuthCountPoint(rd),
+		}
+
+		vo.Prune = append(vo.Prune, prune)
+
+		// debug
+		_, verLU := AuthCountVerify(prune[0], rt.Digest, 3)
+		if !verLU {
+			print("asd")
+		}
+
 		radon := calcRadon(lu, ld, ru, rd)
-		//ps = append(ps, radon)
+		// ps = append(ps, radon)
 		radonN := createLeaf(radon, one, sumOfSlice)
 		radonN.Label = luN.Label
 
@@ -401,6 +413,11 @@ func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 
 func calcRadon(lu, ld, ru, rd [2]float64) [2]float64 {
 
+	radon := [2]float64{}
+	radon[0] = 69
+	radon[1] = 69
+	return radon
+
 	ps := [][2]float64{lu, ld, ru, rd}
 	// hull := openConvexHull(ps)
 	hull := [][2]float64{}
@@ -417,6 +434,9 @@ func calcRadon(lu, ld, ru, rd [2]float64) [2]float64 {
 		D := (lu[0]-ld[0])*(ru[1]-rd[1]) - (lu[1]-ld[1])*(ru[0]-rd[0])
 		radon[0] = ((lu[0]*ld[1]-lu[1]*ld[0])*(ru[0]-rd[0]) - (lu[0]-ld[0])*(ru[0]*rd[1]-ru[1]*rd[0])) / D //works
 		radon[1] = ((lu[0]*ld[1]-lu[1]*ld[0])*(ru[1]-rd[1]) - (lu[1]-ld[1])*(ru[0]*rd[1]-ru[1]*rd[0])) / D
+
+		radon[0] = roundFloat(radon[0], eps)
+		radon[1] = roundFloat(radon[1], eps)
 
 		return radon
 	}
