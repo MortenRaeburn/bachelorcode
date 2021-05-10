@@ -332,12 +332,6 @@ func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 		return nil, &rt, ps, false
 	}
 
-	// debug
-	list := rt.List()
-	_ = list
-	asd := ps
-	_ = asd
-
 	ps = _ps
 
 	for {
@@ -387,12 +381,6 @@ func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 		}
 
 		vo.Prune = append(vo.Prune, prune)
-
-		// debug
-		_, verLU := AuthCountVerify(prune[0], rt.Digest, 3)
-		if !verLU {
-			print("asd")
-		}
 
 		radon := calcRadon(lu, ld, ru, rd)
 		// ps = append(ps, radon)
