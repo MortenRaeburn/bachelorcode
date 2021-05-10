@@ -321,10 +321,6 @@ func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 		_ps = _ps[:len(_ps)-1]
 	}
 
-	if len(_ps) == 0 {
-		return nil, &rt, ps, false
-	}
-
 	done := func(LU, LD, RU, RD [][2]float64) bool {
 		return len(LU) == 0 || len(LD) == 0 || len(RU) == 0 || len(RD) == 0
 	}
@@ -384,7 +380,7 @@ func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 		vo.Prune = append(vo.Prune, prune)
 
 		radon := calcRadon(lu, ld, ru, rd)
-		// ps = append(ps, radon)
+		ps = append(ps, radon)
 		radonN := createLeaf(radon, one, sumOfSlice)
 		radonN.Label = luN.Label
 
@@ -401,12 +397,6 @@ func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 }
 
 func calcRadon(lu, ld, ru, rd [2]float64) [2]float64 {
-
-	radon := [2]float64{}
-	radon[0] = 69
-	radon[1] = 69
-	return radon
-
 	ps := [][2]float64{lu, ld, ru, rd}
 	// hull := openConvexHull(ps)
 	hull := [][2]float64{}
