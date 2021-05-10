@@ -49,13 +49,15 @@ func TestAuthCenterPoint(t *testing.T) {
 
 	rand.Seed(69)
 
-	ps := GeneratePoints(1000)
+	ps := GeneratePoints(2000, 200)
 
 	tree, _ := NewRTree(ps, 3, sumOfSlice, one)
 
 	digest := tree.Digest
 
 	VO := AuthCenterpoint(ps, tree)
+
+	fmt.Println(len(VO.Final))
 
 	_, valid := VerifyCenterpoint(digest, len(ps), VO, tree.Fanout)
 
@@ -281,12 +283,12 @@ func TestCount(t *testing.T) {
 	}
 }
 
-func GeneratePoints(size int) [][2]float64 {
+func GeneratePoints(size int, rang float64) [][2]float64 {
 	ps := [][2]float64{}
 
 	for i := 0; i < size; i++ {
-		x := rand.Float64()*200 - 100
-		y := rand.Float64()*200 - 100
+		x := rand.Float64()*rang - rang/2
+		y := rand.Float64()*rang - rang/2
 
 		ps = append(ps, [2]float64{x, y})
 	}

@@ -138,6 +138,7 @@ func VerifyCenterpoint(digest []byte, initSize int, vo *VOCenter, f int) ([][2]f
 				return nil, false
 			}
 
+			minNs = dedupNodes(minNs)
 			ls := divideByLabel(minNs)
 			roots := verifyLayers(ls, f)
 

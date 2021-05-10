@@ -54,12 +54,6 @@ func TestSearch(t *testing.T) {
 	tree, _ := NewTree(data, 3, sumOfSlice, Identity)
 
 	fmt.Println(tree)
-
-	// debug
-	//two := tree.Search(2)
-	//fmt.Println(two)
-	//ten := tree.Search(10)
-	//fmt.Println(ten)
 }
 
 func TestCount(t *testing.T) {
