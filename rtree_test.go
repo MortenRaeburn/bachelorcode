@@ -18,29 +18,29 @@ func testEndLabel() {
 	fmt.Println()
 }
 
-func TestHalfspaceCount(t *testing.T) {
-	testStartLabel(t)
-	defer testEndLabel()
+// func TestHalfspaceCount(t *testing.T) {
+// 	testStartLabel(t)
+// 	defer testEndLabel()
 
-	assert := assert.New(t)
+// 	assert := assert.New(t)
 
-	data := [][2]float64{
-		{-3, -1},
-		{1, 2},
-		{3, 4},
-		{5, 6},
-	}
+// 	data := [][2]float64{
+// 		{-3, -1},
+// 		{1, 2},
+// 		{3, 4},
+// 		{5, 6},
+// 	}
 
-	tree, _ := NewRTree(data, 3, sumOfSlice, one)
+// 	tree, _ := NewRTree(data, 3, sumOfSlice, one)
 
-	l := NewLine(0, 0, 1)
+// 	l := NewLine(0, 0, 1)
 
-	VO := tree.AuthCountHalfSpace(l)
+// 	VO := tree.AuthCountHalfSpace(l)
 
-	valid := verifyHalfSpace(len(data), l, VO, tree.Digest, tree.Fanout)
+// 	valid := verifyHalfSpace(len(data), l, VO, tree.Digest, tree.Fanout)
 
-	assert.True(valid, "Should be true")
-}
+// 	assert.True(valid, "Should be true")
+// }
 
 func TestAuthCenterPoint(t *testing.T) {
 	testStartLabel(t)

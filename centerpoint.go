@@ -248,10 +248,9 @@ func verifyHalfSpace(size int, l *line, vo *VOCount, digest []byte, f int) bool 
 		return false
 	}
 
-	_ = count
-	// if (size+2)/3-1 <= count {
-	// 	return false
-	// }
+	if size-(size+2)/3 > count {
+		return false
+	}
 
 	return true
 }

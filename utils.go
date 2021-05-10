@@ -58,16 +58,16 @@ func sumOfSlice(i ...int) int {
 func halfSpaceSign(l *line) bool {
 	signLookup := map[bool]map[int]bool{
 		true: {
-			0: true,
-			1: true,
-			2: false,
-			3: false,
+			0: false,
+			1: false,
+			2: true,
+			3: true,
 		},
 		false: {
-			0: false,
-			1: true,
-			2: false,
-			3: true,
+			0: true,
+			1: false,
+			2: true,
+			3: false,
 		},
 	}
 
