@@ -2,15 +2,46 @@ package main
 
 import (
 	"bytes"
+	"encoding/csv"
 	"encoding/json"
 	"io/ioutil"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
+	"os"
 	"sort"
+	"strconv"
+	"time"
 )
 
 var centerpoint_url string = "http://127.0.0.1:5000/centerpoint"
+var SPY *spy = &spy{}
+
+type spy struct {
+	CalcNext int
+	HalfSpaceAux int
+	CountAreaAux int
+	CenterTime int64
+}
+
+func (s *spy) calcNext() {
+	s.CalcNext += 1
+}
+
+func (s *spy) halfSpaceAux() {
+	s.HalfSpaceAux += 1
+}
+
+func (s *spy) countAreaAux() {
+	s.CountAreaAux += 1
+}
+
+func (s *spy) reset() {
+	s.CalcNext = 0
+	s.HalfSpaceAux = 0
+	s.CountAreaAux = 0
+}
 
 type center_res struct {
 	L *line
@@ -54,13 +85,146 @@ func centerpoint(ps [][2]float64) *center_res {
 		return nil
 	}
 
+	time.Now().UnixNano()
+
 	res.addDirAndSign()
 
 	return res
 }
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
+
+	SPY.reset()
+	n := 900
+	f := 3
+
+	fs := []string{
+		"1.csv",
+		"2.csv",
+		"3.csv",
+	}
+	csvs := [][][]string{
+		{}, {}, {},
+	}
+
+	readCsvs(fs, &csvs)
+
+	for {
+		ps := GeneratePoints(n, 100)
+
+		tree, _ := NewRTree(ps, f, sumOfSlice, one)
+
+		digest := tree.Digest
+
+		servStart := time.Now()
+		VO := AuthCenterpoint(ps, tree)
+		servTime := time.Since(servStart).Milliseconds()
+
+		n := tree.Root.Value
+
+		finalAmount := len(VO.Final)
+		
+		for _, pruneVO := range VO.Prunes {
+			lMcs := pruneVO.LCount.Mcs
+			lSib := pruneVO.LCount.Sib
+			
+			uMcs := pruneVO.UCount.Mcs
+			uSib := pruneVO.UCount.Sib
+			
+			dMcs := pruneVO.DCount.Mcs
+			dSib := pruneVO.DCount.Sib
+			
+			rMcs := pruneVO.RCount.Mcs
+			rSib := pruneVO.RCount.Sib
+
+			res2 := []string{
+				strconv.Itoa(n),
+				strconv.Itoa(f),
+				strconv.Itoa(len(lMcs)),
+				strconv.Itoa(len(lSib)),
+				strconv.Itoa(len(uMcs)),
+				strconv.Itoa(len(uSib)),
+				strconv.Itoa(len(dMcs)),
+				strconv.Itoa(len(dSib)),
+				strconv.Itoa(len(rMcs)),
+				strconv.Itoa(len(rSib)),
+				strconv.Itoa(len(pruneVO.Prune)),
+			}
+			
+			csvs[1] = append(csvs[1], res2)
+
+			for _, countVOs := range pruneVO.Prune {
+				for _, countVO := range countVOs {
+					mcs := countVO.Mcs
+					sib := pruneVO.LCount.Sib
+
+					res3 := []string{
+						strconv.Itoa(n),
+						strconv.Itoa(f),
+						strconv.Itoa(len(mcs)),
+						strconv.Itoa(len(sib)),
+					}
+
+					csvs[2] = append(csvs[2], res3)
+				}
+			}
+		}
+
+		clientStart := time.Now()
+		VerifyCenterpoint(digest, len(ps), VO, tree.Fanout)
+		clientTime := time.Since(clientStart).Milliseconds()
+
+		res1 := []string{
+			strconv.Itoa(n),
+			strconv.Itoa(f),
+			strconv.Itoa(SPY.CalcNext),
+			strconv.Itoa(SPY.CountAreaAux),
+			strconv.Itoa(SPY.HalfSpaceAux),
+			strconv.FormatInt(SPY.CenterTime, 10),
+			strconv.FormatInt(servTime, 10),
+			strconv.FormatInt(clientTime, 10),
+			strconv.Itoa(finalAmount),
+		}
+
+		
+		csvs[0] = append(csvs[0], res1)
+		
+		writeCsvs(fs, csvs)
+	}
+}
+
+func writeCsvs(fs []string, csvs [][][]string) {
+	for i := range fs {
+		f, err := os.Create(fs[i])
+
+		if err != nil {
+			panic("Failed to write to: " + fs[i])
+		}
 	
+		w := csv.NewWriter(f)
+	
+		w.WriteAll(csvs[i])
+	}
+}
+
+func readCsvs(fs []string, csvs *[][][]string) {
+	for i := range fs {
+		f, err1 := os.Open(fs[i])
+
+		if err1 != nil {
+			continue
+		}
+
+		r1 := csv.NewReader(f)
+
+		var err error
+		(*csvs)[i], err = r1.ReadAll()
+
+		if err != nil {
+			panic("Failed to read: " + fs[i])
+		}
+	}
 }
 
 func AuthCenterpoint(ps [][2]float64, rt *Rtree) *VOCenter {
@@ -250,7 +414,11 @@ func verifyHalfSpace(size int, l *line, vo *VOCount, digest []byte, f int) bool 
 }
 
 func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
+	start := time.Now()
+	
 	center := centerpoint(ps)
+
+	SPY.CenterTime = time.Since(start).Milliseconds()
 
 	if center == nil {
 		return nil, &rt, ps, false

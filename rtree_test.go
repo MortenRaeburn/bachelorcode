@@ -282,15 +282,3 @@ func TestCount(t *testing.T) {
 		t.Errorf("TestCount failed. Expected 12, but got %d", tree.Root.Value)
 	}
 }
-
-func GeneratePoints(size int, rang float64) [][2]float64 {
-	ps := [][2]float64{}
-
-	for i := 0; i < size; i++ {
-		x := rand.Float64()*rang - rang/2
-		y := rand.Float64()*rang - rang/2
-
-		ps = append(ps, [2]float64{x, y})
-	}
-	return ps
-}

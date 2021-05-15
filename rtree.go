@@ -300,6 +300,8 @@ func (t *Rtree) AuthCountArea(area [4]float64) *VOCount {
 }
 
 func (n *Node) authCountAreaAux(area [4]float64) *VOCount {
+	SPY.countAreaAux()
+
 	vo := new(VOCount)
 	vo.Mcs = []*Node{}
 	vo.Sib = []*Node{}
@@ -342,6 +344,8 @@ func (t *Rtree) AuthCountHalfSpace(l *line) *VOCount {
 }
 
 func (n *Node) authCountHalfSpaceAux(l *line) *VOCount {
+	SPY.halfSpaceAux()
+
 	vo := new(VOCount)
 	vo.Mcs = []*Node{}
 	vo.Sib = []*Node{}
@@ -435,6 +439,8 @@ func calcNext(ns []*Node, f int) []*Node {
 	res := []*Node{}
 
 	for len(ns) != 0 {
+		SPY.calcNext()
+
 		n := ns[0]
 		parLabel := n.Label[:len(n.Label)-1]
 

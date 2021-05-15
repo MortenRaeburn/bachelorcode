@@ -1,6 +1,9 @@
 package main
 
-import "math"
+import (
+	"math"
+	"math/rand"
+)
 
 var eps float64 = 0.00001
 
@@ -118,4 +121,16 @@ func labelSearch(ns []*Node, l string) (*Node, int) {
 func roundFloat(x, prec float64) float64 {
 	recPrec := 1 / prec
 	return math.Floor(x*recPrec) / recPrec
+}
+
+func GeneratePoints(size int, rang float64) [][2]float64 {
+	ps := [][2]float64{}
+
+	for i := 0; i < size; i++ {
+		x := rand.Float64()*rang - rang/2
+		y := rand.Float64()*rang - rang/2
+
+		ps = append(ps, [2]float64{x, y})
+	}
+	return ps
 }
