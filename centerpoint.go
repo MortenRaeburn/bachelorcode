@@ -19,10 +19,10 @@ var centerpoint_url string = "http://127.0.0.1:5000/centerpoint"
 var SPY *spy = &spy{}
 
 type spy struct {
-	CalcNext int
+	CalcNext     int
 	HalfSpaceAux int
 	CountAreaAux int
-	CenterTime int64
+	CenterTime   int64
 }
 
 func (s *spy) calcNext() {
@@ -95,7 +95,6 @@ func centerpoint(ps [][2]float64) *center_res {
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	SPY.reset()
 	n := 900
 	f := 3
 
@@ -111,6 +110,8 @@ func main() {
 	readCsvs(fs, &csvs)
 
 	for {
+		SPY.reset()
+
 		ps := GeneratePoints(n, 100)
 
 		tree, _ := NewRTree(ps, f, sumOfSlice, one)
@@ -124,17 +125,17 @@ func main() {
 		n := tree.Root.Value
 
 		finalAmount := len(VO.Final)
-		
+
 		for _, pruneVO := range VO.Prunes {
 			lMcs := pruneVO.LCount.Mcs
 			lSib := pruneVO.LCount.Sib
-			
+
 			uMcs := pruneVO.UCount.Mcs
 			uSib := pruneVO.UCount.Sib
-			
+
 			dMcs := pruneVO.DCount.Mcs
 			dSib := pruneVO.DCount.Sib
-			
+
 			rMcs := pruneVO.RCount.Mcs
 			rSib := pruneVO.RCount.Sib
 
@@ -151,7 +152,7 @@ func main() {
 				strconv.Itoa(len(rSib)),
 				strconv.Itoa(len(pruneVO.Prune)),
 			}
-			
+
 			csvs[1] = append(csvs[1], res2)
 
 			for _, countVOs := range pruneVO.Prune {
@@ -187,9 +188,8 @@ func main() {
 			strconv.Itoa(finalAmount),
 		}
 
-		
 		csvs[0] = append(csvs[0], res1)
-		
+
 		writeCsvs(fs, csvs)
 	}
 }
@@ -201,9 +201,9 @@ func writeCsvs(fs []string, csvs [][][]string) {
 		if err != nil {
 			panic("Failed to write to: " + fs[i])
 		}
-	
+
 		w := csv.NewWriter(f)
-	
+
 		w.WriteAll(csvs[i])
 	}
 }
@@ -415,7 +415,7 @@ func verifyHalfSpace(size int, l *line, vo *VOCount, digest []byte, f int) bool 
 
 func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 	start := time.Now()
-	
+
 	center := centerpoint(ps)
 
 	SPY.CenterTime = time.Since(start).Milliseconds()
