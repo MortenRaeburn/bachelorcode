@@ -59,7 +59,9 @@ func centerpoint(ps [][2]float64) *center_res {
 	return res
 }
 
-func main() {}
+func main() {
+	
+}
 
 func AuthCenterpoint(ps [][2]float64, rt *Rtree) *VOCenter {
 	pruneVOs := []*VOPrune{}
@@ -233,13 +235,14 @@ func verifyHalfSpace(size int, l *line, vo *VOCount, digest []byte, f int) bool 
 		}
 	}
 
-	_, valid := AuthCountVerify(vo, digest, f)
+	count, valid := AuthCountVerify(vo, digest, f)
 
 	if !valid {
 		return false
 	}
 
-	// if size-(size+2)/3 > count {
+	_ = count
+	// if (size+2)/3 - 2 > count {
 	// 	return false
 	// }
 
@@ -281,25 +284,24 @@ func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 
 		var dest *[][2]float64
 
-
 		if cornerContains(center.L, center.U, mbr) {
 			dest = &LU
 		}
 
 		if cornerContains(center.L, center.D, mbr) {
-			if dest == nil || len(*dest) > len(LD){
+			if dest == nil || len(*dest) > len(LD) {
 				dest = &LD
 			}
 		}
 
 		if cornerContains(center.R, center.U, mbr) {
-			if dest == nil || len(*dest) > len(RU){
+			if dest == nil || len(*dest) > len(RU) {
 				dest = &RU
 			}
 		}
 
 		if cornerContains(center.R, center.D, mbr) {
-			if dest == nil || len(*dest) > len(RD){
+			if dest == nil || len(*dest) > len(RD) {
 				dest = &RD
 			}
 		}
@@ -307,7 +309,7 @@ func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 		if dest == nil {
 			continue
 		}
-		
+
 		*dest = append(*dest, p)
 
 		i, found := pointSearch(_ps, p)
@@ -492,21 +494,3 @@ func pointSearch(ps [][2]float64, x [2]float64) (int, bool) {
 
 	return -1, false
 }
-
-// func diff(ps1, ps2 [][2]float64) ([][2]float64, [][2]float64) {
-// 	newPs1 := ps1 // TODO May need actual deep cloning depending on slice behavior
-// 	newPs2 := ps2
-
-// 	for i, p := range ps1 {
-// 		j, found := pointSearch(newPs2, p)
-
-// 		if !found {
-// 			continue
-// 		}
-
-// 		newPs1 = append(newPs1[:i], newPs1[i+1:]...)
-// 		newPs2 = append(newPs2[:j], newPs2[j+1:]...)
-// 	}
-
-// 	return newPs1, newPs2
-// }

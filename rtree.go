@@ -178,7 +178,7 @@ func createInternal(ns []*Node, agg func(aggs ...int) int) *Node {
 	if len(ns) == 1 {
 		return ns[0]
 	}
-	
+
 	internal := new(Node)
 	internal.Ps = []*Node{}
 	internal.Agg = agg

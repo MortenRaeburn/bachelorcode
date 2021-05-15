@@ -115,7 +115,7 @@ func labelSearch(ns []*Node, l string) (*Node, int) {
 	return nil, -1
 }
 
-func roundFloat(x, prec float64) float64{
-	recPrec := 1/prec
-	return math.Floor(x*recPrec)/recPrec
+func roundFloat(x, prec float64) float64 {
+	recPrec := 1 / prec
+	return math.Floor(x*recPrec) / recPrec
 }

@@ -49,9 +49,9 @@ func TestAuthCenterPoint(t *testing.T) {
 
 	rand.Seed(69)
 
-	ps := GeneratePoints(50000, 100)
+	ps := GeneratePoints(900, 100)
 
-	tree, _ := NewRTree(ps, 3, sumOfSlice, one)
+	tree, _ := NewRTree(ps, 10, sumOfSlice, one)
 
 	digest := tree.Digest
 
