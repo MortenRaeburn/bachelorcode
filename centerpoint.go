@@ -22,6 +22,7 @@ type spy struct {
 	CalcNext     int
 	HalfSpaceAux int
 	CountAreaAux int
+	CenterTimes  []int64
 	CenterTime   int64
 }
 
@@ -41,6 +42,8 @@ func (s *spy) reset() {
 	s.CalcNext = 0
 	s.HalfSpaceAux = 0
 	s.CountAreaAux = 0
+	s.CenterTime = 0
+	s.CenterTimes = []int64{}
 }
 
 type center_res struct {
@@ -95,7 +98,7 @@ func centerpoint(ps [][2]float64) *center_res {
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	n := 900
+	n := 5000
 	f := 3
 
 	fs := []string{
@@ -122,11 +125,9 @@ func main() {
 		VO := AuthCenterpoint(ps, tree)
 		servTime := time.Since(servStart).Milliseconds()
 
-		n := tree.Root.Value
-
 		finalAmount := len(VO.Final)
 
-		for _, pruneVO := range VO.Prunes {
+		for i, pruneVO := range VO.Prunes {
 			lMcs := pruneVO.LCount.Mcs
 			lSib := pruneVO.LCount.Sib
 
@@ -139,9 +140,16 @@ func main() {
 			rMcs := pruneVO.RCount.Mcs
 			rSib := pruneVO.RCount.Sib
 
+			n := 0
+
+			for _, node := range append(lMcs, lSib...) {
+				n += node.Value
+			}
+
 			res2 := []string{
 				strconv.Itoa(n),
 				strconv.Itoa(f),
+				strconv.FormatInt(SPY.CenterTimes[i], 10),
 				strconv.Itoa(len(lMcs)),
 				strconv.Itoa(len(lSib)),
 				strconv.Itoa(len(uMcs)),
@@ -159,6 +167,12 @@ func main() {
 				for _, countVO := range countVOs {
 					mcs := countVO.Mcs
 					sib := pruneVO.LCount.Sib
+
+					n := 0
+
+					for _, node := range append(mcs, sib...) {
+						n += node.Value
+					}
 
 					res3 := []string{
 						strconv.Itoa(n),
@@ -418,7 +432,8 @@ func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 
 	center := centerpoint(ps)
 
-	SPY.CenterTime = time.Since(start).Milliseconds()
+	SPY.CenterTimes = append(SPY.CenterTimes, time.Since(start).Milliseconds())
+	SPY.CenterTime += SPY.CenterTimes[len(SPY.CenterTimes) - 1]
 
 	if center == nil {
 		return nil, &rt, ps, false
