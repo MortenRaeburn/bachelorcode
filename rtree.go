@@ -52,18 +52,7 @@ func NewRTree(elems [][2]float64, fanout int, agg func(aggs ...int) int, aggLeaf
 		roots = append(roots, n)
 	}
 
-	for len(roots) != 1 {
-		temp := []*Node{}
-
-		for i := 0; i < len(roots); i += fanout {
-			j := min(i+fanout, len(roots)) // TODO maybe off by 1
-
-			n := createInternal(roots[i:j], agg)
-			temp = append(temp, n)
-		}
-
-		roots = temp
-	}
+	roots = createInternals(roots, fanout, agg)
 
 	roots[0].labelMaker()
 
@@ -73,6 +62,22 @@ func NewRTree(elems [][2]float64, fanout int, agg func(aggs ...int) int, aggLeaf
 	t.Digest = t.Root.Hash
 
 	return t, nil
+}
+
+func createInternals(roots []*Node, fanout int, agg func(aggs ...int) int) []*Node {
+	for len(roots) != 1 {
+		temp := []*Node{}
+
+		for i := 0; i < len(roots); i += fanout {
+			j := min(i+fanout, len(roots))
+
+			n := createInternal(roots[i:j], agg)
+			temp = append(temp, n)
+		}
+
+		roots = temp
+	}
+	return roots
 }
 
 func (n *Node) listAux() []*Node {

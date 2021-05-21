@@ -96,6 +96,71 @@ func centerpoint(ps [][2]float64) *center_res {
 }
 
 func main() {
+	bench2()
+	// bench1()
+}
+
+func bench2() {
+	rand.Seed(69)
+
+	n := 5000
+	f := 3
+
+	SPY.reset()
+
+	ps := GeneratePoints(n, 100)
+
+	tree, _ := NewRTree(ps, f, sumOfSlice, one)
+	digest := tree.Digest
+
+	areaPs := GeneratePoints(2, 100)
+
+	if areaPs[0][0] > areaPs[1][0] {
+		areaPs[0][0], areaPs[1][0] = areaPs[1][0], areaPs[0][0]
+	}
+
+	if areaPs[0][1] < areaPs[1][1] {
+		areaPs[0][0], areaPs[1][0] = areaPs[1][0], areaPs[0][0]
+	}
+
+	area := [4]float64{
+		areaPs[0][0],
+		areaPs[0][1],
+		areaPs[1][0],
+		areaPs[1][1],
+	}
+
+	subsetVO := tree.AuthCountArea(area)
+	if !verifyArea(area, subsetVO, digest, f) {
+		panic("Subset not valid")
+	}
+
+	tree = subsetAAR(subsetVO, f)
+	digest = tree.Digest
+
+	leaves := tree.List()
+	ps = [][2]float64{}
+
+	for _, l := range leaves {
+		p := [2]float64{
+			l.MBR[0],
+			l.MBR[1],
+		}
+
+		ps = append(ps, p)
+	}
+
+
+	VO := AuthCenterpoint(ps, tree)
+
+	_, valid := VerifyCenterpoint(digest, len(ps), VO, tree.Fanout)
+
+	if !valid {
+		panic("Center VO not valid")
+	}
+}
+
+func bench1() {
 	rand.Seed(time.Now().UnixNano())
 
 	n := 5000
@@ -112,8 +177,12 @@ func main() {
 
 	readCsvs(fs, &csvs)
 
+	var mem int64
+
 	for {
 		SPY.reset()
+
+		mem = 0
 
 		ps := GeneratePoints(n, 100)
 
@@ -128,6 +197,8 @@ func main() {
 		finalAmount := len(VO.Final)
 
 		for i, pruneVO := range VO.Prunes {
+			_ = i
+
 			lMcs := pruneVO.LCount.Mcs
 			lSib := pruneVO.LCount.Sib
 
@@ -140,33 +211,37 @@ func main() {
 			rMcs := pruneVO.RCount.Mcs
 			rSib := pruneVO.RCount.Sib
 
+			mem += int64(len(lMcs) + len(lSib) + len(uMcs) + len(uSib) + len(dMcs) + len(dSib) + len(rMcs) + len(rSib))
+
 			n := 0
 
 			for _, node := range append(lMcs, lSib...) {
 				n += node.Value
 			}
 
-			res2 := []string{
-				strconv.Itoa(n),
-				strconv.Itoa(f),
-				strconv.FormatInt(SPY.CenterTimes[i], 10),
-				strconv.Itoa(len(lMcs)),
-				strconv.Itoa(len(lSib)),
-				strconv.Itoa(len(uMcs)),
-				strconv.Itoa(len(uSib)),
-				strconv.Itoa(len(dMcs)),
-				strconv.Itoa(len(dSib)),
-				strconv.Itoa(len(rMcs)),
-				strconv.Itoa(len(rSib)),
-				strconv.Itoa(len(pruneVO.Prune)),
-			}
+			// res2 := []string{
+			// 	strconv.Itoa(n),
+			// 	strconv.Itoa(f),
+			// 	strconv.FormatInt(SPY.CenterTimes[i], 10),
+			// 	strconv.Itoa(len(lMcs)),
+			// 	strconv.Itoa(len(lSib)),
+			// 	strconv.Itoa(len(uMcs)),
+			// 	strconv.Itoa(len(uSib)),
+			// 	strconv.Itoa(len(dMcs)),
+			// 	strconv.Itoa(len(dSib)),
+			// 	strconv.Itoa(len(rMcs)),
+			// 	strconv.Itoa(len(rSib)),
+			// 	strconv.Itoa(len(pruneVO.Prune)),
+			// }
 
-			csvs[1] = append(csvs[1], res2)
+			//csvs[1] = append(csvs[1], res2)
 
 			for _, countVOs := range pruneVO.Prune {
 				for _, countVO := range countVOs {
 					mcs := countVO.Mcs
 					sib := pruneVO.LCount.Sib
+
+					mem += int64(len(mcs) + len(sib))
 
 					n := 0
 
@@ -174,14 +249,14 @@ func main() {
 						n += node.Value
 					}
 
-					res3 := []string{
-						strconv.Itoa(n),
-						strconv.Itoa(f),
-						strconv.Itoa(len(mcs)),
-						strconv.Itoa(len(sib)),
-					}
+					// res3 := []string{
+					// 	strconv.Itoa(n),
+					// 	strconv.Itoa(f),
+					// 	strconv.Itoa(len(mcs)),
+					// 	strconv.Itoa(len(sib)),
+					// }
 
-					csvs[2] = append(csvs[2], res3)
+					// csvs[2] = append(csvs[2], res3)
 				}
 			}
 		}
@@ -193,18 +268,28 @@ func main() {
 		res1 := []string{
 			strconv.Itoa(n),
 			strconv.Itoa(f),
-			strconv.Itoa(SPY.CalcNext),
-			strconv.Itoa(SPY.CountAreaAux),
-			strconv.Itoa(SPY.HalfSpaceAux),
+			//strconv.Itoa(SPY.CalcNext),
+			//strconv.Itoa(SPY.CountAreaAux),
+			//strconv.Itoa(SPY.HalfSpaceAux),
 			strconv.FormatInt(SPY.CenterTime, 10),
-			strconv.FormatInt(servTime, 10),
+			strconv.FormatInt(servTime-SPY.CenterTime, 10),
 			strconv.FormatInt(clientTime, 10),
+			strconv.FormatInt(mem, 10),
 			strconv.Itoa(finalAmount),
 		}
 
 		csvs[0] = append(csvs[0], res1)
 
 		writeCsvs(fs, csvs)
+
+		n = rand.Intn(49500) + 500
+
+		if f == 3 {
+			f = 9
+		} else {
+			f = 3
+		}
+
 	}
 }
 
@@ -427,13 +512,49 @@ func verifyHalfSpace(size int, l *line, vo *VOCount, digest []byte, f int) bool 
 	return true
 }
 
+func verifyArea(area [4]float64, vo *VOCount, digest []byte, f int) bool {
+	for i, n := range vo.Mcs {
+		_ = i
+
+		if !containsArea(area, n.MBR) {
+			return false
+		}
+	}
+
+	_, valid := AuthCountVerify(vo, digest, f)
+
+	if !valid {
+		return false
+	}
+
+	return true
+}
+
+func subsetAAR(vo *VOCount, f int) *Rtree {
+	rt := new(Rtree)
+
+	rt.Root = createInternals(vo.Mcs, f, sumOfSlice)[0]
+	rt.Root.labelMaker()
+
+	rt.Digest = rt.Root.Hash
+	rt.Fanout = f
+
+	return rt
+}
+
+func subsetAARDigest(vo *VOCount, f int) []byte {
+	root := createInternals(vo.Mcs, f, sumOfSlice)[0]
+
+	return root.Hash
+}
+
 func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 	start := time.Now()
 
 	center := centerpoint(ps)
 
 	SPY.CenterTimes = append(SPY.CenterTimes, time.Since(start).Milliseconds())
-	SPY.CenterTime += SPY.CenterTimes[len(SPY.CenterTimes) - 1]
+	SPY.CenterTime += SPY.CenterTimes[len(SPY.CenterTimes)-1]
 
 	if center == nil {
 		return nil, &rt, ps, false
