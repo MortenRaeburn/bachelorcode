@@ -97,15 +97,113 @@ func centerpoint(ps [][2]float64) *center_res {
 }
 
 func main() {
-	//go bench2()
-	go bench3()
-	// go bench1()
+	go bench4()
+	// go bench2()
+	// go bench3()
+	go bench1()
 	<-(chan int)(nil)
 }
 
 func bench3() {
 	file := readFile("testpointset.txt")
 	fmt.Print(file)
+}
+
+func bench4() {
+	rand.Seed(time.Now().UnixNano())
+
+	n := 0
+	f := 3
+
+	fs := []string{
+		"5.csv",
+	}
+	csvs := [][][]string{
+		{},
+	}
+
+	readCsvs(fs, &csvs)
+
+	areas := [2][4]float64 {
+		{0, 50, 50, 0},
+		{0, 25, 25, 0},
+	}
+	areaSwitch := false
+
+	for {
+		area := areas[0]
+
+		if areaSwitch {
+			area = areas[1]
+		}
+
+		areaSwitch = !areaSwitch
+
+		SPY.reset()
+
+		n = rand.Intn(199500) + 500
+
+		ps := GeneratePoints(n, 100)
+
+		tree, _ := NewRTree(ps, f, sumOfSlice, one)
+		digest := tree.Digest
+	
+		
+
+		if !pointSearchArea(ps, area) {
+			continue
+		}
+	
+		servStart := time.Now()
+		subsetVO := tree.AuthCountArea(area)
+		servTime := time.Since(servStart).Microseconds()
+	
+		clientStart := time.Now()
+		if !verifyArea(area, subsetVO, digest, f) {
+			panic("Subset not valid")
+		}
+		clientTime := time.Since(clientStart).Milliseconds()
+	
+		commonStart := time.Now()
+		tree = subsetAAR(subsetVO, f)
+		commonTime := time.Since(commonStart).Milliseconds()
+
+		digest = tree.Digest
+	
+		leaves := tree.List()
+		ps = [][2]float64{}
+	
+		for _, l := range leaves {
+			p := [2]float64{
+				l.MBR[0],
+				l.MBR[1],
+			}
+	
+			ps = append(ps, p)
+		}
+
+		subAmount := len(ps)
+
+		res5 := []string{
+			strconv.Itoa(n),
+			strconv.Itoa(f),
+			strconv.Itoa(subAmount),
+			fmt.Sprintf("%f", area[0]),
+			fmt.Sprintf("%f", area[1]),
+			fmt.Sprintf("%f", area[2]),
+			fmt.Sprintf("%f", area[3]),
+			strconv.FormatInt(servTime, 10),
+			strconv.FormatInt(clientTime, 10),
+			strconv.Itoa(len(subsetVO.Mcs)),
+			strconv.Itoa(len(subsetVO.Sib)),
+			strconv.FormatInt(commonTime, 10),
+			strconv.FormatBool(areaSwitch),
+		}
+
+		csvs[0] = append(csvs[0], res5)
+
+		writeCsvs(fs, csvs)
+	}
 }
 
 func bench2() {
