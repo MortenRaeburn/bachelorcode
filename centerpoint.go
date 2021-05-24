@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/csv"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"math"
@@ -96,67 +97,111 @@ func centerpoint(ps [][2]float64) *center_res {
 }
 
 func main() {
-	bench2()
-	// bench1()
+	//go bench2()
+	go bench3()
+	// go bench1()
+	<-(chan int)(nil)
+}
+
+func bench3() {
+	file := readFile("testpointset.txt")
+	fmt.Print(file)
 }
 
 func bench2() {
-	rand.Seed(69)
+	rand.Seed(time.Now().UnixNano())
 
-	n := 5000
+	n := 0
 	f := 3
 
-	SPY.reset()
-
-	ps := GeneratePoints(n, 100)
-
-	tree, _ := NewRTree(ps, f, sumOfSlice, one)
-	digest := tree.Digest
-
-	areaPs := GeneratePoints(2, 100)
-
-	if areaPs[0][0] > areaPs[1][0] {
-		areaPs[0][0], areaPs[1][0] = areaPs[1][0], areaPs[0][0]
+	fs := []string{
+		"4.csv",
+	}
+	csvs := [][][]string{
+		{},
 	}
 
-	if areaPs[0][1] < areaPs[1][1] {
-		areaPs[0][0], areaPs[1][0] = areaPs[1][0], areaPs[0][0]
-	}
+	readCsvs(fs, &csvs)
 
-	area := [4]float64{
-		areaPs[0][0],
-		areaPs[0][1],
-		areaPs[1][0],
-		areaPs[1][1],
-	}
+	for {
+		SPY.reset()
 
-	subsetVO := tree.AuthCountArea(area)
-	if !verifyArea(area, subsetVO, digest, f) {
-		panic("Subset not valid")
-	}
+		n = rand.Intn(199500) + 500
 
-	tree = subsetAAR(subsetVO, f)
-	digest = tree.Digest
+		ps := GeneratePoints(n, 100)
 
-	leaves := tree.List()
-	ps = [][2]float64{}
-
-	for _, l := range leaves {
-		p := [2]float64{
-			l.MBR[0],
-			l.MBR[1],
+		tree, _ := NewRTree(ps, f, sumOfSlice, one)
+		digest := tree.Digest
+	
+		areaPs := GeneratePoints(2, 100)
+	
+		if areaPs[0][0] > areaPs[1][0] {
+			areaPs[0][0], areaPs[1][0] = areaPs[1][0], areaPs[0][0]
+		}
+	
+		if areaPs[0][1] < areaPs[1][1] {
+			areaPs[0][0], areaPs[1][0] = areaPs[1][0], areaPs[0][0]
+		}
+	
+		area := [4]float64{
+			areaPs[0][0],
+			areaPs[0][1],
+			areaPs[1][0],
+			areaPs[1][1],
 		}
 
-		ps = append(ps, p)
-	}
+		if !pointSearchArea(ps, area) {
+			continue
+		}
+	
+		servStart := time.Now()
+		subsetVO := tree.AuthCountArea(area)
+		servTime := time.Since(servStart).Microseconds()
+	
+		clientStart := time.Now()
+		if !verifyArea(area, subsetVO, digest, f) {
+			panic("Subset not valid")
+		}
+		clientTime := time.Since(clientStart).Milliseconds()
+	
+		commonStart := time.Now()
+		tree = subsetAAR(subsetVO, f)
+		commonTime := time.Since(commonStart).Milliseconds()
 
+		digest = tree.Digest
+	
+		leaves := tree.List()
+		ps = [][2]float64{}
+	
+		for _, l := range leaves {
+			p := [2]float64{
+				l.MBR[0],
+				l.MBR[1],
+			}
+	
+			ps = append(ps, p)
+		}
 
-	VO := AuthCenterpoint(ps, tree)
+		subAmount := len(ps)
 
-	_, valid := VerifyCenterpoint(digest, len(ps), VO, tree.Fanout)
+		res4 := []string{
+			strconv.Itoa(n),
+			strconv.Itoa(f),
+			strconv.Itoa(subAmount),
+			fmt.Sprintf("%f", area[0]),
+			fmt.Sprintf("%f", area[1]),
+			fmt.Sprintf("%f", area[2]),
+			fmt.Sprintf("%f", area[3]),
+			strconv.FormatInt(servTime, 10),
+			strconv.FormatInt(clientTime, 10),
+			strconv.Itoa(len(subsetVO.Mcs)),
+			strconv.Itoa(len(subsetVO.Sib)),
+			strconv.FormatInt(commonTime, 10),
+		}
 
-	if !valid {
-		panic("Center VO not valid")
+		csvs[0] = append(csvs[0], res4)
+
+		writeCsvs(fs, csvs)
 	}
 }
 
@@ -797,4 +842,23 @@ func pointSearch(ps [][2]float64, x [2]float64) (int, bool) {
 	}
 
 	return -1, false
+}
+
+func pointSearchArea(ps [][2]float64, area [4]float64) bool {
+	for _, p := range ps {
+		pArea := [4]float64 {
+			p[0],
+			p[1],
+			p[0],
+			p[1],
+		}
+
+		if !containsArea(area, pArea) {
+			continue
+		}
+
+		return true
+	}
+
+	return false
 }
