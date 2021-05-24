@@ -7,7 +7,7 @@ import numpy as np
 
 
 headers = ['in_size','fanout','oracle_time','Server runtime','Client runtime','VO size','final_amout']
-subset_headers = ['in_size', 'fanout', 'subset_size', 'x1', 'y1', 'x2', 'y2', 'Server runtime', 'Client runtime', 'mcs_size', 'sib_size', 'Common time', 'VO size']
+subset_headers = ['in_size', 'fanout', 'subset_size', 'x1', 'y1', 'x2', 'y2', 'Server runtime', 'Client runtime', 'mcs_size', 'sib_size', 'Common time', 'VO size', 'switch']
 
 def compare_fanouts(df, header, unit):
     f3 = df.query('fanout==3')
@@ -24,9 +24,29 @@ def compare_fanouts(df, header, unit):
     axs.set_ylabel(header+" ("+unit+")")
     plt.grid(True)
     plt.legend()
-    #plt.savefig(header+"_f3vsf9.eps", format = 'eps')
+    plt.savefig(header+"_f3vsf9.eps", format = 'eps')
     plt.savefig(header+"_f3vsf9.png")
     plt.clf()
+
+def compare_areas(df, header, unit):
+    large = df.query('y1==50')
+    small = df.query('y1==25')
+    x1 = large['in_size']
+    y1 = large[header]
+    x2 = small['in_size']
+    y2 = small[header]
+    _, axs = plt.subplots(1, constrained_layout=True)
+
+    axs.plot(x1,y1, 'bo', label='large')
+    axs.plot(x2,y2, 'r+', label='small')
+    axs.set_xlabel('Input size (# of points)')
+    axs.set_ylabel(header+" ("+unit+")")
+    plt.grid(True)
+    plt.legend()
+    plt.savefig(header+"_f3vsf9.eps", format = 'eps')
+    plt.savefig(header+"_largevssmall.png")
+    plt.clf()
+
 
 
 def create_graph(df, header, unit):
@@ -43,15 +63,15 @@ def create_graph(df, header, unit):
     plt.scatter(x,y)
 
     plt.grid(True)
-    #plt.savefig(header+"_f3.eps", format='eps')
+    plt.savefig(header+"_f3.eps", format='eps')
     plt.savefig(header+"_"+"f3"+".png")
     plt.clf()
 
 
 
 if __name__ == '__main__':
-    df = pd.read_csv("test2res1.csv", names = headers)
-    subdf = pd.read_csv("subtest.csv", names = subset_headers)
+    df = pd.read_csv("1.csv", names = headers)
+    subdf = pd.read_csv("5.csv", names = subset_headers)
 
     subdf['VO size'] = subdf.apply(lambda row: row.mcs_size + row.sib_size, axis=1)
 
@@ -63,9 +83,9 @@ if __name__ == '__main__':
 
 
     #subset experiments:
-    create_graph(subdf, 'Client runtime', 'ms')
-    create_graph(subdf, 'Server runtime', 'ms')
-    create_graph(subdf, 'VO size', '# of nodes')
-    create_graph(subdf, 'Common time', 'ms')
+    compare_areas(subdf, 'Client runtime', 'ms')
+    compare_areas(subdf, 'Server runtime', 'ms')
+    compare_areas(subdf, 'VO size', '# of nodes')
+    compare_areas(subdf, 'Common time', 'ms')
 
 
