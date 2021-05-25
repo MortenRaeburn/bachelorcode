@@ -71,6 +71,7 @@ def create_graph(df, header, unit):
 
 if __name__ == '__main__':
     df = pd.read_csv("1.csv", names = headers)
+    df = df.query('oracle_time != 0')
     subdf = pd.read_csv("5.csv", names = subset_headers)
 
     subdf['VO size'] = subdf.apply(lambda row: row.mcs_size + row.sib_size, axis=1)

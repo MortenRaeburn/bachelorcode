@@ -139,8 +139,6 @@ func bench4() {
 
 		areaSwitch = !areaSwitch
 
-		SPY.reset()
-
 		n = rand.Intn(199500) + 500
 
 		ps := GeneratePoints(n, 100)
