@@ -97,10 +97,11 @@ func centerpoint(ps [][2]float64) *center_res {
 }
 
 func main() {
-	go bench4()
+	go bench5()
+	// go bench4()
 	// go bench2()
 	// go bench3()
-	go bench1()
+	// go bench1()
 	<-(chan int)(nil)
 }
 
@@ -124,7 +125,7 @@ func bench4() {
 
 	readCsvs(fs, &csvs)
 
-	areas := [2][4]float64 {
+	areas := [2][4]float64{
 		{0, 50, 50, 0},
 		{0, 25, 25, 0},
 	}
@@ -145,38 +146,36 @@ func bench4() {
 
 		tree, _ := NewRTree(ps, f, sumOfSlice, one)
 		digest := tree.Digest
-	
-		
 
 		if !pointSearchArea(ps, area) {
 			continue
 		}
-	
+
 		servStart := time.Now()
 		subsetVO := tree.AuthCountArea(area)
 		servTime := time.Since(servStart).Microseconds()
-	
+
 		clientStart := time.Now()
 		if !verifyArea(area, subsetVO, digest, f) {
 			panic("Subset not valid")
 		}
 		clientTime := time.Since(clientStart).Milliseconds()
-	
+
 		commonStart := time.Now()
 		tree = subsetAAR(subsetVO, f)
 		commonTime := time.Since(commonStart).Milliseconds()
 
 		digest = tree.Digest
-	
+
 		leaves := tree.List()
 		ps = [][2]float64{}
-	
+
 		for _, l := range leaves {
 			p := [2]float64{
 				l.MBR[0],
 				l.MBR[1],
 			}
-	
+
 			ps = append(ps, p)
 		}
 
@@ -228,17 +227,17 @@ func bench2() {
 
 		tree, _ := NewRTree(ps, f, sumOfSlice, one)
 		digest := tree.Digest
-	
+
 		areaPs := GeneratePoints(2, 100)
-	
+
 		if areaPs[0][0] > areaPs[1][0] {
 			areaPs[0][0], areaPs[1][0] = areaPs[1][0], areaPs[0][0]
 		}
-	
+
 		if areaPs[0][1] < areaPs[1][1] {
 			areaPs[0][0], areaPs[1][0] = areaPs[1][0], areaPs[0][0]
 		}
-	
+
 		area := [4]float64{
 			areaPs[0][0],
 			areaPs[0][1],
@@ -249,32 +248,32 @@ func bench2() {
 		if !pointSearchArea(ps, area) {
 			continue
 		}
-	
+
 		servStart := time.Now()
 		subsetVO := tree.AuthCountArea(area)
 		servTime := time.Since(servStart).Microseconds()
-	
+
 		clientStart := time.Now()
 		if !verifyArea(area, subsetVO, digest, f) {
 			panic("Subset not valid")
 		}
 		clientTime := time.Since(clientStart).Milliseconds()
-	
+
 		commonStart := time.Now()
 		tree = subsetAAR(subsetVO, f)
 		commonTime := time.Since(commonStart).Milliseconds()
 
 		digest = tree.Digest
-	
+
 		leaves := tree.List()
 		ps = [][2]float64{}
-	
+
 		for _, l := range leaves {
 			p := [2]float64{
 				l.MBR[0],
 				l.MBR[1],
 			}
-	
+
 			ps = append(ps, p)
 		}
 
@@ -298,6 +297,149 @@ func bench2() {
 		csvs[0] = append(csvs[0], res4)
 
 		writeCsvs(fs, csvs)
+	}
+}
+
+func bench5() {
+	allPs := readFile("roads_mbrs.txt")
+
+	rand.Seed(time.Now().UnixNano())
+
+	n := 0
+	f := 3
+
+	fs := []string{
+		"6.csv",
+	}
+	csvs := [][][]string{
+		{},
+	}
+
+	readCsvs(fs, &csvs)
+
+	var mem int64
+
+	for {
+		n = rand.Intn(49500) + 500
+
+		ps := [][2]float64{}
+		_allPs := allPs
+
+		for i := 0; i < n; i++ {
+			r := rand.Intn(len(_allPs))
+
+			ps = append(ps, allPs[r])
+
+			_allPs[r] = _allPs[len(_allPs)-1]
+			_allPs = _allPs[:len(_allPs)-1]
+
+		}
+
+		SPY.reset()
+
+		mem = 0
+
+		tree, _ := NewRTree(ps, f, sumOfSlice, one)
+
+		digest := tree.Digest
+
+		servStart := time.Now()
+		VO := AuthCenterpoint(ps, tree)
+		servTime := time.Since(servStart).Milliseconds()
+
+		finalAmount := len(VO.Final)
+
+		for i, pruneVO := range VO.Prunes {
+			_ = i
+
+			lMcs := pruneVO.LCount.Mcs
+			lSib := pruneVO.LCount.Sib
+
+			uMcs := pruneVO.UCount.Mcs
+			uSib := pruneVO.UCount.Sib
+
+			dMcs := pruneVO.DCount.Mcs
+			dSib := pruneVO.DCount.Sib
+
+			rMcs := pruneVO.RCount.Mcs
+			rSib := pruneVO.RCount.Sib
+
+			mem += int64(len(lMcs) + len(lSib) + len(uMcs) + len(uSib) + len(dMcs) + len(dSib) + len(rMcs) + len(rSib))
+
+			n := 0
+
+			for _, node := range append(lMcs, lSib...) {
+				n += node.Value
+			}
+
+			// res2 := []string{
+			// 	strconv.Itoa(n),
+			// 	strconv.Itoa(f),
+			// 	strconv.FormatInt(SPY.CenterTimes[i], 10),
+			// 	strconv.Itoa(len(lMcs)),
+			// 	strconv.Itoa(len(lSib)),
+			// 	strconv.Itoa(len(uMcs)),
+			// 	strconv.Itoa(len(uSib)),
+			// 	strconv.Itoa(len(dMcs)),
+			// 	strconv.Itoa(len(dSib)),
+			// 	strconv.Itoa(len(rMcs)),
+			// 	strconv.Itoa(len(rSib)),
+			// 	strconv.Itoa(len(pruneVO.Prune)),
+			// }
+
+			//csvs[1] = append(csvs[1], res2)
+
+			for _, countVOs := range pruneVO.Prune {
+				for _, countVO := range countVOs {
+					mcs := countVO.Mcs
+					sib := pruneVO.LCount.Sib
+
+					mem += int64(len(mcs) + len(sib))
+
+					n := 0
+
+					for _, node := range append(mcs, sib...) {
+						n += node.Value
+					}
+
+					// res3 := []string{
+					// 	strconv.Itoa(n),
+					// 	strconv.Itoa(f),
+					// 	strconv.Itoa(len(mcs)),
+					// 	strconv.Itoa(len(sib)),
+					// }
+
+					// csvs[2] = append(csvs[2], res3)
+				}
+			}
+		}
+
+		clientStart := time.Now()
+		VerifyCenterpoint(digest, len(ps), VO, tree.Fanout)
+		clientTime := time.Since(clientStart).Milliseconds()
+
+		res1 := []string{
+			strconv.Itoa(n),
+			strconv.Itoa(f),
+			//strconv.Itoa(SPY.CalcNext),
+			//strconv.Itoa(SPY.CountAreaAux),
+			//strconv.Itoa(SPY.HalfSpaceAux),
+			strconv.FormatInt(SPY.CenterTime, 10),
+			strconv.FormatInt(servTime-SPY.CenterTime, 10),
+			strconv.FormatInt(clientTime, 10),
+			strconv.FormatInt(mem, 10),
+			strconv.Itoa(finalAmount),
+		}
+
+		csvs[0] = append(csvs[0], res1)
+
+		writeCsvs(fs, csvs)
+
+		if f == 3 {
+			f = 9
+		} else {
+			f = 3
+		}
 	}
 }
 
@@ -942,7 +1084,7 @@ func pointSearch(ps [][2]float64, x [2]float64) (int, bool) {
 
 func pointSearchArea(ps [][2]float64, area [4]float64) bool {
 	for _, p := range ps {
-		pArea := [4]float64 {
+		pArea := [4]float64{
 			p[0],
 			p[1],
 			p[0],

@@ -44,8 +44,8 @@ def compare_fanouts(df, header, unit, deg):
 
     axs.plot(x1,y1, 'bo', label='Fanout = 3')
     axs.plot(x2,y2, 'r+', label='Fanout = 9')
-    plt.plot(l1, p1(l1), "b", label=str(z1))
-    plt.plot(l2, p2(l2), "r", label=str(z1))
+    plt.plot(l1, p1(l1), "b", label="Poly. fit, fanout = 3")
+    plt.plot(l2, p2(l2), "r", label="Poly. fit, fanout = 9")
     axs.set_xlabel('Input size (# of points)')
     axs.set_ylabel(header+" ("+unit+")")
     plt.grid(True)
@@ -72,10 +72,10 @@ def compare_areas(df, header, unit, deg):
     p2 = np.poly1d(z2)
     l2 = np.linspace(0, x2.to_numpy().max(), 1000)
 
-    axs.plot(x1,y1, 'bo', label='Area = 50^2')
-    axs.plot(x2,y2, 'r+', label='Area = 25^2')
-    plt.plot(l1, p1(l1), "b", label=str(z1))
-    plt.plot(l2, p2(l2), "r", label=str(z1))
+    axs.plot(x1,y1, 'bo', label='Area = 25% of total')
+    axs.plot(x2,y2, 'r+', label='Area = 6.25% of total')
+    plt.plot(l1, p1(l1), "b", label="Poly. fit, area = 25% of total")
+    plt.plot(l2, p2(l2), "r", label="Poly. fit, area = 6.25% of total")
     axs.set_xlabel('Input size (# of points)')
     axs.set_ylabel(header+" ("+unit+")")
     plt.grid(True)
@@ -85,24 +85,53 @@ def compare_areas(df, header, unit, deg):
     plt.clf()
 
 
+def read_world_data(df, deg):
 
-def create_graph(df, header, unit):
-
-    df = df.query("fanout==3")
-    x = df['in_size']
-    y = df[header]    
-    
+    x1 = df['in_size']
+    y1 = df['Server runtime']
+    x2 = x1
+    y2 = df['Client runtime']
     _, axs = plt.subplots(1, constrained_layout=True)
 
-    axs.plot(x,y,'bo')
-    axs.set_xlabel('Input size (# of points)')
-    axs.set_ylabel(header+" ("+unit+")")
-    plt.scatter(x,y)
+    z1 = np.polyfit(x1, y1, deg)
+    p1 = np.poly1d(z1)
+    l1 = np.linspace(0, x1.to_numpy().max(), 1000)
 
+    
+    z2 = np.polyfit(x2, y2, deg)
+    p2 = np.poly1d(z2)
+    l2 = np.linspace(0, x2.to_numpy().max(), 1000)
+
+    axs.plot(x1,y1, 'bo', label='Server runtime')
+    axs.plot(x2,y2, 'r+', label='Client runtime')
+    plt.plot(l1, p1(l1), "b", label="Poly. fit, server runtime")
+    plt.plot(l2, p2(l2), "r", label="Poly. fit, client runtime")
+    axs.set_xlabel('Subset size (# of points)')
+    axs.set_ylabel("Runtime (ms)")
     plt.grid(True)
-    plt.savefig(header+"_f3.eps", format='eps')
-    plt.savefig(header+"_"+"f3"+".png")
+    plt.legend()
+    plt.savefig("world_data.eps")
+    plt.savefig("world_data.png")
     plt.clf()
+
+
+# def create_graph(df, header, unit):
+
+#     df = df.query("fanout==3")
+#     x = df['in_size']
+#     y = df[header]    
+    
+#     _, axs = plt.subplots(1, constrained_layout=True)
+
+#     axs.plot(x,y,'bo')
+#     axs.set_xlabel('Input size (# of points)')
+#     axs.set_ylabel(header+" ("+unit+")")
+#     plt.scatter(x,y)
+
+#     plt.grid(True)
+#     plt.savefig(header+"_f3.eps", format='eps')
+#     plt.savefig(header+"_"+"f3"+".png")
+#     plt.clf()
 
 
 
@@ -110,6 +139,7 @@ if __name__ == '__main__':
     df = pd.read_csv("1.csv", names = headers)
     df = df.query('oracle_time != 0')
     subdf = pd.read_csv("5.csv", names = subset_headers, nrows = 500)
+    worlddf = pd.read_csv("6.csv", names = headers, nrows = 500)
 
     subdf['VO size'] = subdf.apply(lambda row: row.mcs_size + row.sib_size, axis=1)
 
@@ -123,7 +153,7 @@ if __name__ == '__main__':
     #subset experiments:
     compare_areas(subdf, 'Client runtime', 'ms', 2)
     compare_areas(subdf, 'Server runtime', 'ms', 1)
-    compare_areas(subdf, 'VO size', '# of nodes', 1)
-    #compare_areas(subdf, 'Common time', 'ms') #sth wrong here
+    #compare_areas(subdf, 'VO size', '# of nodes', 1) sth wrong here
+    compare_areas(subdf, 'Common time', 'ms', 1) 
 
-
+    read_world_data(worlddf, 2)
