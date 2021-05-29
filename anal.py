@@ -32,20 +32,34 @@ def compare_fanouts(df, header, unit, deg):
     x2 = f9['in_size']
     y2 = f9[header]
     _, axs = plt.subplots(1, constrained_layout=True)
-
-    z1 = np.polyfit(x1, y1, deg)
-    p1 = np.poly1d(z1)
-    l1 = np.linspace(0, x1.to_numpy().max(), 1000)
-
-    
-    z2 = np.polyfit(x2, y2, deg)
-    p2 = np.poly1d(z2)
-    l2 = np.linspace(0, x2.to_numpy().max(), 1000)
-
     axs.plot(x1,y1, 'bo', label='Fanout = 3')
     axs.plot(x2,y2, 'r+', label='Fanout = 9')
-    plt.plot(l1, p1(l1), "b", label="Poly. fit, fanout = 3")
-    plt.plot(l2, p2(l2), "r", label="Poly. fit, fanout = 9")
+
+    if deg == 'nlogn':
+        z1 = np.polyfit(x1 * np.log(x1), y1, 1)
+        p1 = np.poly1d(z1)
+        l1 = np.linspace(1, x1.max(), 1000)
+
+        
+        z2 = np.polyfit(x2 * np.log(x2), y2, 1)
+        p2 = np.poly1d(z2)
+        l2 = np.linspace(1, x2.max(), 1000)
+
+        plt.plot(l1, p1(l1 * np.log(l1)), "b", label = "Poly fit, fanout = 3")
+        plt.plot(l2, p2(l2 * np.log(l2)), "r", label= "Poly fit, fanout = 9")
+    else:
+        z1 = np.polyfit(x1, y1, deg)
+        p1 = np.poly1d(z1)
+        l1 = np.linspace(0, x1.to_numpy().max(), 1000)
+
+        
+        z2 = np.polyfit(x2, y2, deg)
+        p2 = np.poly1d(z2)
+        l2 = np.linspace(0, x2.to_numpy().max(), 1000)
+
+        plt.plot(l1, p1(l1), "b", label = " fit, area = 25% of total")
+        plt.plot(l2, p2(l2), "r", label= " fit, area = 6.25% of total")
+
     axs.set_xlabel('Input size (# of points)')
     axs.set_ylabel(header+" ("+unit+")")
     plt.grid(True)
@@ -54,7 +68,7 @@ def compare_fanouts(df, header, unit, deg):
     plt.savefig(header+"_f3vsf9.png")
     plt.clf()
 
-def compare_areas(df, header, unit, deg):
+def compare_areas(df, header, unit, deg, fun):
     large = df.query('y1==50')
     small = df.query('y1==25')
     x1 = large['in_size']
@@ -62,20 +76,36 @@ def compare_areas(df, header, unit, deg):
     x2 = small['in_size']
     y2 = small[header]
     _, axs = plt.subplots(1, constrained_layout=True)
-
-    z1 = np.polyfit(x1, y1, deg)
-    p1 = np.poly1d(z1)
-    l1 = np.linspace(0, x1.to_numpy().max(), 1000)
-
-    
-    z2 = np.polyfit(x2, y2, deg)
-    p2 = np.poly1d(z2)
-    l2 = np.linspace(0, x2.to_numpy().max(), 1000)
-
     axs.plot(x1,y1, 'bo', label='Area = 25% of total')
     axs.plot(x2,y2, 'r+', label='Area = 6.25% of total')
-    plt.plot(l1, p1(l1), "b", label="Poly. fit, area = 25% of total")
-    plt.plot(l2, p2(l2), "r", label="Poly. fit, area = 6.25% of total")
+
+    if deg == 'nlogn':
+        z1 = np.polyfit(x1 * np.log(x1), y1, 1)
+        p1 = np.poly1d(z1)
+        l1 = np.linspace(1, x1.max(), 1000)
+
+        
+        z2 = np.polyfit(x2 * np.log(x2), y2, 1)
+        p2 = np.poly1d(z2)
+        l2 = np.linspace(1, x2.max(), 1000)
+
+        plt.plot(l1, p1(l1 * np.log(l1)), "b", label = fun+" fit, area = 25% of total")
+        plt.plot(l2, p2(l2 * np.log(l2)), "r", label= fun+" fit, area = 6.25% of total")
+    else:
+        z1 = np.polyfit(x1, y1, deg)
+        p1 = np.poly1d(z1)
+        l1 = np.linspace(0, x1.to_numpy().max(), 1000)
+
+        
+        z2 = np.polyfit(x2, y2, deg)
+        p2 = np.poly1d(z2)
+        l2 = np.linspace(0, x2.to_numpy().max(), 1000)
+
+        plt.plot(l1, p1(l1), "b", label = fun+" fit, area = 25% of total")
+        plt.plot(l2, p2(l2), "r", label= fun+ " fit, area = 6.25% of total")
+
+    
+    
     axs.set_xlabel('Input size (# of points)')
     axs.set_ylabel(header+" ("+unit+")")
     plt.grid(True)
@@ -104,8 +134,8 @@ def read_world_data(df, deg):
 
     axs.plot(x1,y1, 'bo', label='Server runtime')
     axs.plot(x2,y2, 'r+', label='Client runtime')
-    plt.plot(l1, p1(l1), "b", label="Poly. fit, server runtime")
-    plt.plot(l2, p2(l2), "r", label="Poly. fit, client runtime")
+    plt.plot(l1, p1(l1), "b", label= "Poly. fit, server runtime")
+    plt.plot(l2, p2(l2), "r", label= "Poly. fit, client runtime")
     axs.set_xlabel('Subset size (# of points)')
     axs.set_ylabel("Runtime (ms)")
     plt.grid(True)
@@ -144,16 +174,16 @@ if __name__ == '__main__':
     subdf['VO size'] = subdf.apply(lambda row: row.mcs_size + row.sib_size, axis=1)
 
     #center experiments:
-    compare_fanouts(df, 'Client runtime', 'ms', 2)
+    compare_fanouts(df, 'Client runtime', 'ms', 'nlogn')
     compare_fanouts(df, 'Server runtime', 'ms', 2)
     compare_fanouts(df, 'VO size', '# of nodes', 2)
 
 
 
     #subset experiments:
-    compare_areas(subdf, 'Client runtime', 'ms', 2)
-    compare_areas(subdf, 'Server runtime', 'ms', 1)
+    compare_areas(subdf, 'Client runtime', 'ms', 2, "Poly.")
+    compare_areas(subdf, 'Server runtime', 'ms', 1, "Linear")
     #compare_areas(subdf, 'VO size', '# of nodes', 1) sth wrong here
-    compare_areas(subdf, 'Common time', 'ms', 1) 
+    compare_areas(subdf, 'Common time', 'ms', 1, "Linear") 
 
     read_world_data(worlddf, 2)
