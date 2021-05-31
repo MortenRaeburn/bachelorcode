@@ -440,12 +440,6 @@ func bench5() {
 		csvs[0] = append(csvs[0], res1)
 
 		writeCsvs(fs, csvs)
-
-		if f == 3 {
-			f = 9
-		} else {
-			f = 3
-		}
 	}
 }
 
