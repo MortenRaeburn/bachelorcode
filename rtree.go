@@ -398,9 +398,6 @@ func AuthCountVerify(vo *VOCount, digest []byte, f int) (int, bool) {
 		return -1, false
 	}
 	for i := range digest {
-		// rtHash := root.Hash[i]
-		// rtDigest := digest[i]
-
 		if root.Hash[i] != digest[i] {
 			return -1, false
 		}
@@ -434,44 +431,85 @@ func verifyLayers(ls map[int][]*Node, f int) []*Node {
 		l = append(l, calc...)
 		l = dedupNodes(l)
 
-		calc = calcNext(l, f)
+		calc = calcNext(l, f, i)
 	}
 
 	return calc
 }
 
-func calcNext(ns []*Node, f int) []*Node {
+func calcNext(ns []*Node, f, h int) []*Node {
 	res := []*Node{}
 
-	for len(ns) != 0 {
+	nsAmount := int(math.Pow(float64(f), float64(h)))
+
+	nsSorted := make([]*Node, nsAmount)
+
+	for _, n := range ns {
+		index := labelToString(n.Label, h, f)
+		
+		nsSorted[index] = n
+	}
+
+	last := 0
+
+	for {
 		SPY.calcNext()
 
-		n := ns[0]
+		var n *Node
+
+		for i := last; i < len(nsSorted); i++ {
+			if nsSorted[i] == nil {
+				continue
+			}
+
+			last = i
+			n = nsSorted[i]
+			break
+		}
+
+		if n == nil {
+			break
+		}
+
 		parLabel := n.Label[:len(n.Label)-1]
 
-		nextNs := ns
+		nextNs := nsSorted
 		ss := []*Node{}
 		for i := 0; i < f; i++ {
 			iStr := strconv.Itoa(i)
 
 			sLabel := parLabel + iStr
-			sNode, j := labelSearch(ns, sLabel)
+			j := labelToString(sLabel, h, f)
+			sNode := nsSorted[j]
 
 			if sNode == nil {
 				continue
 			}
 
-			nextNs = append(nextNs[:j], nextNs[j+1:]...)
+			nextNs[j] = nil
 			ss = append(ss, sNode)
 		}
 
-		ns = nextNs
+		nsSorted = nextNs
 		internal := createInternal(ss, sumOfSlice)
 		internal.Label = parLabel
 		res = append(res, internal)
 	}
 
 	return res
+}
+
+func labelToString(label string, h int, f int) int {
+	index := 0
+
+	for i, d := range label {
+		d := int(d)-48
+		j := h - i - 1
+
+		index += int(math.Pow(float64(f), float64(j))) * d
+	}
+
+	return index
 }
 
 func divideByLabel(ns []*Node) map[int][]*Node {

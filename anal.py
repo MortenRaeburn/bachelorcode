@@ -181,7 +181,7 @@ if __name__ == '__main__':
 
 
     #subset experiments:
-    compare_areas(subdf, 'Client runtime', 'ms', 2, "Poly.")
+    compare_areas(subdf, 'Client runtime', 'ms', 1, "Poly.")
     compare_areas(subdf, 'Server runtime', 'ms', 1, "Linear")
     #compare_areas(subdf, 'VO size', '# of nodes', 1) sth wrong here
     compare_areas(subdf, 'Common time', 'ms', 1, "Linear") 

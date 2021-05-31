@@ -97,17 +97,11 @@ func centerpoint(ps [][2]float64) *center_res {
 }
 
 func main() {
-	go bench5()
-	// go bench4()
+	// go bench5()
+	go bench4()
 	// go bench2()
-	// go bench3()
-	// go bench1()
+	go bench1()
 	<-(chan int)(nil)
-}
-
-func bench3() {
-	file := readFile("testpointset.txt")
-	fmt.Print(file)
 }
 
 func bench4() {
