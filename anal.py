@@ -174,7 +174,7 @@ if __name__ == '__main__':
     subdf['VO size'] = subdf.apply(lambda row: row.mcs_size + row.sib_size, axis=1)
 
     #center experiments:
-    compare_fanouts(df, 'Client runtime', 'ms', 'nlogn')
+    compare_fanouts(df, 'Client runtime', 'ms', 2)
     compare_fanouts(df, 'Server runtime', 'ms', 2)
     compare_fanouts(df, 'VO size', '# of nodes', 2)
 

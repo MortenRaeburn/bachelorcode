@@ -303,6 +303,18 @@ func bench2() {
 func bench5() {
 	allPs := readFile("roads_mbrs.txt")
 
+	hs := make(map[[2]float64]struct{})
+
+	for _, p := range allPs {
+		hs[p] = struct{}{}
+	}
+
+	allPs = [][2]float64{}
+
+	for k := range hs {
+		allPs = append(allPs, k)
+	}
+
 	rand.Seed(time.Now().UnixNano())
 
 	n := 0
