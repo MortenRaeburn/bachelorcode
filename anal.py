@@ -57,8 +57,8 @@ def compare_fanouts(df, header, unit, deg):
         p2 = np.poly1d(z2)
         l2 = np.linspace(0, x2.to_numpy().max(), 1000)
 
-        plt.plot(l1, p1(l1), "b", label = " fit, area = 25% of total")
-        plt.plot(l2, p2(l2), "r", label= " fit, area = 6.25% of total")
+        plt.plot(l1, p1(l1), "b", label = "Poly fit, fanout = 3")
+        plt.plot(l2, p2(l2), "r", label= "Poly fit, fanout = 9")
 
     axs.set_xlabel('Input size (# of points)')
     axs.set_ylabel(header+" ("+unit+")")
@@ -115,7 +115,7 @@ def compare_areas(df, header, unit, deg, fun):
     plt.clf()
 
 
-def read_world_data(df, deg):
+def read_world_data(df):
 
     x1 = df['in_size']
     y1 = df['Server runtime']
@@ -123,19 +123,18 @@ def read_world_data(df, deg):
     y2 = df['Client runtime']
     _, axs = plt.subplots(1, constrained_layout=True)
 
-    z1 = np.polyfit(x1, y1, deg)
+    z1 = np.polyfit(x1, y1, 2)
     p1 = np.poly1d(z1)
     l1 = np.linspace(0, x1.to_numpy().max(), 1000)
 
-    
-    z2 = np.polyfit(x2, y2, deg)
+    z2 = np.polyfit(x2 * np.log(x2), y2, 1)
     p2 = np.poly1d(z2)
-    l2 = np.linspace(0, x2.to_numpy().max(), 1000)
+    l2 = np.linspace(1, x2.max(), 1000)
 
     axs.plot(x1,y1, 'bo', label='Server runtime')
     axs.plot(x2,y2, 'r+', label='Client runtime')
     plt.plot(l1, p1(l1), "b", label= "Poly. fit, server runtime")
-    plt.plot(l2, p2(l2), "r", label= "Poly. fit, client runtime")
+    plt.plot(l2, p2(l2 * np.log(l2)), "r", label= "Poly. fit, client runtime")
     axs.set_xlabel('Subset size (# of points)')
     axs.set_ylabel("Runtime (ms)")
     plt.grid(True)
@@ -174,7 +173,7 @@ if __name__ == '__main__':
     subdf['VO size'] = subdf.apply(lambda row: row.mcs_size + row.sib_size, axis=1)
 
     #center experiments:
-    compare_fanouts(df, 'Client runtime', 'ms', 2)
+    compare_fanouts(df, 'Client runtime', 'ms', 'nlogn')
     compare_fanouts(df, 'Server runtime', 'ms', 2)
     compare_fanouts(df, 'VO size', '# of nodes', 2)
 
@@ -186,4 +185,4 @@ if __name__ == '__main__':
     #compare_areas(subdf, 'VO size', '# of nodes', 1) sth wrong here
     compare_areas(subdf, 'Common time', 'ms', 1, "Linear") 
 
-    read_world_data(worlddf, 2)
+    read_world_data(worlddf)
