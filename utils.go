@@ -98,7 +98,7 @@ type VOPrune struct {
 	DCount *VOCount
 	RCount *VOCount
 
-	Prune [][4]*VOCount
+	Prune *VOCount
 }
 
 type VOCount struct {

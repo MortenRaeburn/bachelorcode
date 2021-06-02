@@ -386,6 +386,103 @@ func (n *Node) authCountHalfSpaceAux(l *line) *VOCount {
 	return vo
 }
 
+// AuthCountHalfSpace ???
+func (t *Rtree) AuthCountHalfSpaces(ls [][2]*line) *VOCount {
+	return t.Root.authCountHalfSpacesAux(ls)
+}
+
+func (n *Node) authCountHalfSpacesAux(ls [][2]*line) *VOCount {
+	SPY.halfSpaceAux()
+
+	vo := new(VOCount)
+	vo.Mcs = []*Node{}
+	vo.Sib = []*Node{}
+
+	for i, c := range n.Ps {
+		_ = i
+
+		if !intersectsHalfSpaces(ls, c.MBR) {
+			cs := c.listAux()
+
+			for _, n := range cs {
+				_n := n.Clone()
+				vo.Mcs = append(vo.Mcs, &_n)
+			}
+			continue
+		}
+
+		if containsHalfSpaces(ls, c.MBR) {
+			cc := c.Clone()
+			vo.Sib = append(vo.Sib, &cc)
+			continue
+		}
+
+		voChild := c.authCountHalfSpacesAux(ls)
+
+		vo.Mcs = append(vo.Mcs, voChild.Mcs...)
+
+		if len(voChild.Mcs) != 0 {
+			vo.Sib = append(vo.Sib, voChild.Sib...)
+			continue
+		}
+
+		cc := c.Clone()
+		vo.Sib = append(vo.Sib, &cc)
+	}
+
+	return vo
+}
+
+func intersectsHalfSpaces(ls [][2]*line, r [4]float64) bool {
+	amounts := intersectsHalfSpacesAux(r, ls)
+
+	for _, amount := range amounts {
+		if amount < 1 {
+			continue
+		}
+
+		return true
+	}
+
+	return false
+
+}
+
+func intersectsHalfSpacesAux(r [4]float64, ls [][2]*line) []int {
+	// TODO correct int to float64 and remove conversion
+	ps := [][2]float64{
+		{float64(r[0]), float64(r[1])},
+		{float64(r[0]), float64(r[3])},
+		{float64(r[2]), float64(r[1])},
+		{float64(r[2]), float64(r[3])},
+	}
+
+	res := []int{}
+
+	for _, l := range ls {
+		f0 := filter(l[0], ps)
+		f1 := filter(l[1], f0)
+
+		res = append(res, len(f1))
+	}
+
+	return res
+}
+
+func containsHalfSpaces(ls [][2]*line, r [4]float64) bool {
+	amounts := intersectsHalfSpacesAux(r, ls)
+
+	for _, amount := range amounts {
+		if amount < 4 {
+			continue
+		}
+
+		return true
+	}
+
+	return false
+}
+
 // AuthCountVerify ???
 func AuthCountVerify(vo *VOCount, digest []byte, f int) (int, bool) {
 	ns := append(vo.Mcs, vo.Sib...)
@@ -446,7 +543,7 @@ func calcNext(ns []*Node, f, h int) []*Node {
 
 	for _, n := range ns {
 		index := labelToString(n.Label, h, f)
-		
+
 		nsSorted[index] = n
 	}
 
@@ -503,7 +600,7 @@ func labelToString(label string, h int, f int) int {
 	index := 0
 
 	for i, d := range label {
-		d := int(d)-48
+		d := int(d) - 48
 		j := h - i - 1
 
 		index += int(math.Pow(float64(f), float64(j))) * d

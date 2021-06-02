@@ -14,6 +14,8 @@ import (
 	"sort"
 	"strconv"
 	"time"
+
+	
 )
 
 var centerpoint_url string = "http://127.0.0.1:5000/centerpoint"
@@ -395,29 +397,29 @@ func bench5() {
 
 			//csvs[1] = append(csvs[1], res2)
 
-			for _, countVOs := range pruneVO.Prune {
-				for _, countVO := range countVOs {
-					mcs := countVO.Mcs
-					sib := pruneVO.LCount.Sib
+			// for _, countVOs := range pruneVO.Prune {
+			// 	for _, countVO := range countVOs {
+			// 		mcs := countVO.Mcs
+			// 		sib := pruneVO.LCount.Sib
 
-					mem += int64(len(mcs) + len(sib))
+			// 		mem += int64(len(mcs) + len(sib))
 
-					n := 0
+			// 		n := 0
 
-					for _, node := range append(mcs, sib...) {
-						n += node.Value
-					}
+			// 		for _, node := range append(mcs, sib...) {
+			// 			n += node.Value
+			// 		}
 
-					// res3 := []string{
-					// 	strconv.Itoa(n),
-					// 	strconv.Itoa(f),
-					// 	strconv.Itoa(len(mcs)),
-					// 	strconv.Itoa(len(sib)),
-					// }
+			// 		// res3 := []string{
+			// 		// 	strconv.Itoa(n),
+			// 		// 	strconv.Itoa(f),
+			// 		// 	strconv.Itoa(len(mcs)),
+			// 		// 	strconv.Itoa(len(sib)),
+			// 		// }
 
-					// csvs[2] = append(csvs[2], res3)
-				}
-			}
+			// 		// csvs[2] = append(csvs[2], res3)
+			// 	}
+			// }
 		}
 
 		clientStart := time.Now()
@@ -519,29 +521,29 @@ func bench1() {
 
 			//csvs[1] = append(csvs[1], res2)
 
-			for _, countVOs := range pruneVO.Prune {
-				for _, countVO := range countVOs {
-					mcs := countVO.Mcs
-					sib := pruneVO.LCount.Sib
+			// for _, countVOs := range pruneVO.Prune {
+			// 	for _, countVO := range countVOs {
+			// 		mcs := countVO.Mcs
+			// 		sib := pruneVO.LCount.Sib
 
-					mem += int64(len(mcs) + len(sib))
+			// 		mem += int64(len(mcs) + len(sib))
 
-					n := 0
+			// 		n := 0
 
-					for _, node := range append(mcs, sib...) {
-						n += node.Value
-					}
+			// 		for _, node := range append(mcs, sib...) {
+			// 			n += node.Value
+			// 		}
 
-					// res3 := []string{
-					// 	strconv.Itoa(n),
-					// 	strconv.Itoa(f),
-					// 	strconv.Itoa(len(mcs)),
-					// 	strconv.Itoa(len(sib)),
-					// }
+			// 		// res3 := []string{
+			// 		// 	strconv.Itoa(n),
+			// 		// 	strconv.Itoa(f),
+			// 		// 	strconv.Itoa(len(mcs)),
+			// 		// 	strconv.Itoa(len(sib)),
+			// 		// }
 
-					// csvs[2] = append(csvs[2], res3)
-				}
-			}
+			// 		// csvs[2] = append(csvs[2], res3)
+			// 	}
+			// }
 		}
 
 		clientStart := time.Now()
@@ -644,78 +646,123 @@ func VerifyCenterpoint(digest []byte, initSize int, vo *VOCenter, f int) ([][2]f
 			return nil, false
 		}
 
-		for _, countVOs := range pruneVO.Prune {
-			LU := countVOs[0]
-			LD := countVOs[1]
-			RU := countVOs[2]
-			RD := countVOs[3]
+		_, pruneValid := AuthCountVerify(pruneVO.Prune, digest, f)
 
-			minNs := []*Node{}
+		if  !pruneValid{
+			return nil, false
+		}
 
-			for _, countVO := range countVOs {
-				if len(countVO.Mcs) != 1 {
-					return nil, false
-				}
+		LU := []*Node{}
+		LD := []*Node{}
+		RU := []*Node{}
+		RD := []*Node{}
 
-				count, valid := AuthCountVerify(countVO, digest, f)
-
-				if !valid || count != 1 {
-					return nil, false
-				}
-
-				minNs = append(minNs, countVO.Mcs...)
-				minNs = append(minNs, countVO.Sib...)
+		for _, n := range pruneVO.Prune.Mcs {
+			var dest *[]*Node
+	
+			if cornerContains(pruneVO.L, pruneVO.U, n.MBR) {
+				dest = &LU
 			}
+	
+			if cornerContains(pruneVO.L, pruneVO.D, n.MBR) {
+				if dest == nil || len(*dest) > len(LD) {
+					dest = &LD
+				}
+			}
+	
+			if cornerContains(pruneVO.R, pruneVO.U, n.MBR) {
+				if dest == nil || len(*dest) > len(RU) {
+					dest = &RU
+				}
+			}
+	
+			if cornerContains(pruneVO.R, pruneVO.D, n.MBR) {
+				if dest == nil || len(*dest) > len(RD) {
+					dest = &RD
+				}
+			}
+	
+			if dest == nil {
+				panic("Dest should not be nil")
+			}
+	
+			*dest = append(*dest, n)
+		}
 
-			containsLU := cornerContains(pruneVO.L, pruneVO.U, LU.Mcs[0].MBR)
-			containsLD := cornerContains(pruneVO.L, pruneVO.D, LD.Mcs[0].MBR)
-			containsRU := cornerContains(pruneVO.R, pruneVO.U, RU.Mcs[0].MBR)
-			containsRD := cornerContains(pruneVO.R, pruneVO.D, RD.Mcs[0].MBR)
+		done := func(LU, LD, RU, RD []*Node) bool {
+			return len(LU) == 0 || len(LD) == 0 || len(RU) == 0 || len(RD) == 0
+		}
 
-			if !containsLU || !containsLD || !containsRU || !containsRD {
+		ns := append(pruneVO.Prune.Mcs, pruneVO.Prune.Sib...)
+		ls := divideByLabel(ns)
+		root := verifyLayers(ls, f)[0]
+
+		if root.Value != size {
+			return nil, false
+		}
+
+		if len(digest) != len(root.Hash) {
+			return nil, false
+		}
+
+		for i := range digest {
+			if root.Hash[i] != digest[i] {
 				return nil, false
 			}
-
-			minNs = dedupNodes(minNs)
-			ls := divideByLabel(minNs)
-			roots := verifyLayers(ls, f)
-
-			root := roots[0]
-
-			if len(root.Hash) != len(digest) {
-				return nil, false
+		} 
+	
+		for {
+			if done(LU, LD, RU, RD) {
+				break
 			}
-
-			for i := range digest {
-				if digest[i] != root.Hash[i] {
-					return nil, false
-				}
+	
+			var luN, ldN, ruN, rdN *Node
+			luN, LU = LU[0], LU[1:]
+			ldN, LD = LD[0], LD[1:]
+			ruN, RU = RU[0], RU[1:]
+			rdN, RD = RD[0], RD[1:]
+	
+			lu := [2]float64{
+				luN.MBR[0],
+				luN.MBR[1],
+	
 			}
-
-			var lu, ld, ru, rd [2]float64
-			copy(lu[:], LU.Mcs[0].MBR[:])
-			copy(ld[:], LD.Mcs[0].MBR[:])
-			copy(ru[:], RU.Mcs[0].MBR[:])
-			copy(rd[:], RD.Mcs[0].MBR[:])
-
+			
+			ld := [2]float64{
+				ldN.MBR[0],
+				ldN.MBR[1],
+	
+			}
+			
+			ru := [2]float64{
+				ruN.MBR[0],
+				ruN.MBR[1],
+	
+			}
+			
+			rd := [2]float64{
+				rdN.MBR[0],
+				rdN.MBR[1],
+	
+			}
+	
 			radon := calcRadon(lu, ld, ru, rd)
-
 			radonN := createLeaf(radon, one, sumOfSlice)
-			radonN.Label = LU.Mcs[0].Label
-
-			r1 := root.replace(LU.Mcs[0], radonN)
-			r2 := root.remove(LD.Mcs[0])
-			r3 := root.remove(RU.Mcs[0])
-			r4 := root.remove(RD.Mcs[0])
+			radonN.Label = luN.Label
+	
+			r1 := root.replace(luN, radonN)
+			r2 := root.remove(ldN)
+			r3 := root.remove(ruN)
+			r4 := root.remove(rdN)
 
 			if !r1 || !r2 || !r3 || !r4 {
 				panic("Removal/Replacement process failed!")
 			}
-
-			digest = root.Hash
-			size = root.Value
 		}
 
+		
+		digest = root.Hash
+		size = root.Value
 	}
 
 	finalPs := [][2]float64{}
@@ -795,6 +842,24 @@ func verifyHalfSpace(size int, l *line, vo *VOCount, digest []byte, f int) bool 
 	return true
 }
 
+func verifyHalfSpaces(size int, ls [][2]*line, vo *VOCount, digest []byte, f int) bool {
+	for i, n := range vo.Mcs {
+		_ = i
+
+		if !containsHalfSpaces(ls, n.MBR) {
+			return false
+		}
+
+		if n.Value != 1 {
+			return false
+		}
+	}
+
+	_, valid := AuthCountVerify(vo, digest, f)
+
+	return valid
+}
+
 func verifyArea(area [4]float64, vo *VOCount, digest []byte, f int) bool {
 	for i, n := range vo.Mcs {
 		_ = i
@@ -849,55 +914,62 @@ func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 	vo.D = center.D
 	vo.R = center.R
 
+	ls := [][2]*line{
+		{vo.L, vo.U},
+		{vo.L, vo.D},
+		{vo.R, vo.U},
+		{vo.R, vo.D},
+	}
+
 	vo.LCount = rt.AuthCountHalfSpace(center.L)
 	vo.UCount = rt.AuthCountHalfSpace(center.U)
 	vo.DCount = rt.AuthCountHalfSpace(center.D)
 	vo.RCount = rt.AuthCountHalfSpace(center.R)
 
-	LU := [][2]float64{}
-	LD := [][2]float64{}
-	RU := [][2]float64{}
-	RD := [][2]float64{}
+	vo.Prune = rt.AuthCountHalfSpaces(ls)
+
+	LU := []*Node{}
+	LD := []*Node{}
+	RU := []*Node{}
+	RD := []*Node{}
 
 	_ps := ps
 
-	for _, p := range ps {
-		mbr := [4]float64{
-			p[0],
-			p[1],
-			p[0],
-			p[1],
-		}
+	for _, n := range vo.Prune.Mcs {
+		var dest *[]*Node
 
-		var dest *[][2]float64
-
-		if cornerContains(center.L, center.U, mbr) {
+		if cornerContains(center.L, center.U, n.MBR) {
 			dest = &LU
 		}
 
-		if cornerContains(center.L, center.D, mbr) {
+		if cornerContains(center.L, center.D, n.MBR) {
 			if dest == nil || len(*dest) > len(LD) {
 				dest = &LD
 			}
 		}
 
-		if cornerContains(center.R, center.U, mbr) {
+		if cornerContains(center.R, center.U, n.MBR) {
 			if dest == nil || len(*dest) > len(RU) {
 				dest = &RU
 			}
 		}
 
-		if cornerContains(center.R, center.D, mbr) {
+		if cornerContains(center.R, center.D, n.MBR) {
 			if dest == nil || len(*dest) > len(RD) {
 				dest = &RD
 			}
 		}
 
 		if dest == nil {
-			continue
+			panic("Dest should not be nil")
 		}
 
-		*dest = append(*dest, p)
+		*dest = append(*dest, n)
+
+		p := [2]float64{
+			n.MBR[0],
+			n.MBR[1],
+		}
 
 		i, found := pointSearch(_ps, p)
 
@@ -909,7 +981,7 @@ func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 		_ps = _ps[:len(_ps)-1]
 	}
 
-	done := func(LU, LD, RU, RD [][2]float64) bool {
+	done := func(LU, LD, RU, RD []*Node) bool {
 		return len(LU) == 0 || len(LD) == 0 || len(RU) == 0 || len(RD) == 0
 	}
 
@@ -924,48 +996,35 @@ func prune(ps [][2]float64, rt Rtree) (*VOPrune, *Rtree, [][2]float64, bool) {
 			break
 		}
 
-		var lu, ld, ru, rd [2]float64
-		lu, LU = LU[0], LU[1:]
-		ld, LD = LD[0], LD[1:]
-		ru, RU = RU[0], RU[1:]
-		rd, RD = RD[0], RD[1:]
+		var luN, ldN, ruN, rdN *Node
+		luN, LU = LU[0], LU[1:]
+		ldN, LD = LD[0], LD[1:]
+		ruN, RU = RU[0], RU[1:]
+		rdN, RD = RD[0], RD[1:]
 
-		luN := rt.Search([4]float64{
-			lu[0],
-			lu[1],
-			lu[0],
-			lu[1],
-		})[0]
+		lu := [2]float64{
+			luN.MBR[0],
+			luN.MBR[1],
 
-		ldN := rt.Search([4]float64{
-			ld[0],
-			ld[1],
-			ld[0],
-			ld[1],
-		})[0]
-
-		ruN := rt.Search([4]float64{
-			ru[0],
-			ru[1],
-			ru[0],
-			ru[1],
-		})[0]
-
-		rdN := rt.Search([4]float64{
-			rd[0],
-			rd[1],
-			rd[0],
-			rd[1],
-		})[0]
-
-		prune := [4]*VOCount{
-			rt.AuthCountPoint(lu),
-			rt.AuthCountPoint(ld),
-			rt.AuthCountPoint(ru),
-			rt.AuthCountPoint(rd),
 		}
+		
+		ld := [2]float64{
+			ldN.MBR[0],
+			ldN.MBR[1],
 
-		vo.Prune = append(vo.Prune, prune)
+		}
+		
+		ru := [2]float64{
+			ruN.MBR[0],
+			ruN.MBR[1],
+
+		}
+		
+		rd := [2]float64{
+			rdN.MBR[0],
+			rdN.MBR[1],
+
+		}
 
 		radon := calcRadon(lu, ld, ru, rd)
 		ps = append(ps, radon)
