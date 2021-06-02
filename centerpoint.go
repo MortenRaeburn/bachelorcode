@@ -98,9 +98,9 @@ func centerpoint(ps [][2]float64) *center_res {
 
 func main() {
 	// go bench5()
-	// go bench4()
+	bench4()
 	// go bench2()
-	bench1()
+	// go bench1()
 	<-(chan int)(nil)
 }
 
@@ -463,7 +463,7 @@ func bench1() {
 	var mem int64
 
 	for {
-		n = rand.Intn(4500) + 500
+		n = rand.Intn(49500) + 500
 
 		SPY.reset()
 
