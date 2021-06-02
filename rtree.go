@@ -137,10 +137,6 @@ func (n *Node) remove(t *Node) bool {
 
 		if len(child.Ps) == 0 {
 			n.Ps = append(n.Ps[:i], n.Ps[i+1:]...)
-		} else if len(child.Ps) == 1 {
-			label := child.Label
-			n.Ps[i] = child.Ps[0]
-			n.Ps[i].Label = label
 		}
 
 		n.CalcAgg()
@@ -150,6 +146,22 @@ func (n *Node) remove(t *Node) bool {
 	}
 
 	return false
+}
+
+func (n *Node) maskRemoval() {
+	for i, c := range n.Ps {
+		c.maskRemoval()
+
+		if len(c.Ps) == 1 {
+			label := c.Label
+			n.Ps[i] = c.Ps[0]
+			n.Ps[i].Label = label
+
+			n.CalcAgg()
+			n.CalcMBR()
+			n.CalcHash()
+		}
+	}
 }
 
 func (n *Node) replace(t, s *Node) bool {
@@ -180,10 +192,6 @@ func (n *Node) replace(t, s *Node) bool {
 }
 
 func createInternal(ns []*Node, agg func(aggs ...int) int) *Node {
-	if len(ns) == 1 {
-		return ns[0]
-	}
-
 	internal := new(Node)
 	internal.Ps = []*Node{}
 	internal.Agg = agg
@@ -329,14 +337,7 @@ func (n *Node) authCountAreaAux(area [4]float64) *VOCount {
 		voChild := c.authCountAreaAux(area)
 
 		vo.Mcs = append(vo.Mcs, voChild.Mcs...)
-
-		if len(voChild.Mcs) != 0 {
-			vo.Sib = append(vo.Sib, voChild.Sib...)
-			continue
-		}
-
-		cc := c.Clone()
-		vo.Sib = append(vo.Sib, &cc)
+		vo.Sib = append(vo.Sib, voChild.Sib...)
 
 	}
 
@@ -358,13 +359,13 @@ func (n *Node) authCountHalfSpaceAux(l *line) *VOCount {
 	for i, c := range n.Ps {
 		_ = i
 
-		if !intersectsHalfSpace(l, c.MBR) {
+		if !intersectsHalfSpace(l, c.MBR, false) {
 			cc := c.Clone()
 			vo.Sib = append(vo.Sib, &cc)
 			continue
 		}
 
-		if containsHalfSpace(l, c.MBR) {
+		if containsHalfSpace(l, c.MBR, true) {
 			cc := c.Clone()
 			vo.Mcs = append(vo.Mcs, &cc)
 			continue
@@ -373,14 +374,7 @@ func (n *Node) authCountHalfSpaceAux(l *line) *VOCount {
 		voChild := c.authCountHalfSpaceAux(l)
 
 		vo.Mcs = append(vo.Mcs, voChild.Mcs...)
-
-		if len(voChild.Mcs) != 0 {
-			vo.Sib = append(vo.Sib, voChild.Sib...)
-			continue
-		}
-
-		cc := c.Clone()
-		vo.Sib = append(vo.Sib, &cc)
+		vo.Sib = append(vo.Sib, voChild.Sib...)
 	}
 
 	return vo
@@ -401,40 +395,46 @@ func (n *Node) authCountHalfSpacesAux(ls [][2]*line) *VOCount {
 	for i, c := range n.Ps {
 		_ = i
 
-		if !intersectsHalfSpaces(ls, c.MBR) {
+		if containsHalfSpaces(ls, c.MBR, false) {
+			cc := c.Clone()
+			vo.Sib = append(vo.Sib, &cc)
+			continue
+		}
+
+		cornerContained := false
+
+		for _, l := range ls {
+			if !cornerContains(l[0], l[1], c.MBR) {
+				continue
+			}
+
+			cornerContained = true
+
 			cs := c.listAux()
 
 			for _, n := range cs {
 				_n := n.Clone()
 				vo.Mcs = append(vo.Mcs, &_n)
 			}
-			continue
+
+			break
 		}
 
-		if containsHalfSpaces(ls, c.MBR) {
-			cc := c.Clone()
-			vo.Sib = append(vo.Sib, &cc)
+		if cornerContained {
 			continue
 		}
 
 		voChild := c.authCountHalfSpacesAux(ls)
 
 		vo.Mcs = append(vo.Mcs, voChild.Mcs...)
-
-		if len(voChild.Mcs) != 0 {
-			vo.Sib = append(vo.Sib, voChild.Sib...)
-			continue
-		}
-
-		cc := c.Clone()
-		vo.Sib = append(vo.Sib, &cc)
+		vo.Sib = append(vo.Sib, voChild.Sib...)
 	}
 
 	return vo
 }
 
-func intersectsHalfSpaces(ls [][2]*line, r [4]float64) bool {
-	amounts := intersectsHalfSpacesAux(r, ls)
+func intersectsHalfSpaces(ls [][2]*line, r [4]float64, incl bool) bool {
+	amounts := intersectsHalfSpacesAux(r, ls, incl)
 
 	for _, amount := range amounts {
 		if amount < 1 {
@@ -448,7 +448,7 @@ func intersectsHalfSpaces(ls [][2]*line, r [4]float64) bool {
 
 }
 
-func intersectsHalfSpacesAux(r [4]float64, ls [][2]*line) []int {
+func intersectsHalfSpacesAux(r [4]float64, ls [][2]*line, incl bool) []int {
 	// TODO correct int to float64 and remove conversion
 	ps := [][2]float64{
 		{float64(r[0]), float64(r[1])},
@@ -460,8 +460,8 @@ func intersectsHalfSpacesAux(r [4]float64, ls [][2]*line) []int {
 	res := []int{}
 
 	for _, l := range ls {
-		f0 := filter(l[0], ps)
-		f1 := filter(l[1], f0)
+		f0 := filter(l[0], ps, incl)
+		f1 := filter(l[1], f0, incl)
 
 		res = append(res, len(f1))
 	}
@@ -469,8 +469,8 @@ func intersectsHalfSpacesAux(r [4]float64, ls [][2]*line) []int {
 	return res
 }
 
-func containsHalfSpaces(ls [][2]*line, r [4]float64) bool {
-	amounts := intersectsHalfSpacesAux(r, ls)
+func containsHalfSpaces(ls [][2]*line, r [4]float64, incl bool) bool {
+	amounts := intersectsHalfSpacesAux(r, ls, incl)
 
 	for _, amount := range amounts {
 		if amount < 4 {
@@ -485,7 +485,12 @@ func containsHalfSpaces(ls [][2]*line, r [4]float64) bool {
 
 // AuthCountVerify ???
 func AuthCountVerify(vo *VOCount, digest []byte, f int) (int, bool) {
-	ns := append(vo.Mcs, vo.Sib...)
+	mcs := make([]*Node, len(vo.Mcs))
+	sib := make([]*Node, len(vo.Sib))
+	copy(mcs, vo.Mcs)
+	copy(sib, vo.Sib)
+	
+	ns := append(mcs, sib...)
 	ls := divideByLabel(ns)
 	roots := verifyLayers(ls, f)
 
@@ -526,7 +531,6 @@ func verifyLayers(ls map[int][]*Node, f int) []*Node {
 		}
 
 		l = append(l, calc...)
-		l = dedupNodes(l)
 
 		calc = calcNext(l, f, i)
 	}
@@ -656,14 +660,14 @@ func containsArea(outer, inner [4]float64) bool {
 	return outer[0] <= inner[0] && outer[1] >= inner[1] && outer[2] >= inner[2] && outer[3] <= inner[3]
 }
 
-func intersectsHalfSpace(l *line, r [4]float64) bool {
-	amount := intersectsHalfSpaceAux(r, l)
+func intersectsHalfSpace(l *line, r [4]float64, incl bool) bool {
+	amount := intersectsHalfSpaceAux(r, l, incl)
 
 	return amount > 0
 
 }
 
-func intersectsHalfSpaceAux(r [4]float64, l *line) int {
+func intersectsHalfSpaceAux(r [4]float64, l *line, incl bool) int {
 	// TODO correct int to float64 and remove conversion
 	ps := [][2]float64{
 		{float64(r[0]), float64(r[1])},
@@ -672,13 +676,13 @@ func intersectsHalfSpaceAux(r [4]float64, l *line) int {
 		{float64(r[2]), float64(r[3])},
 	}
 
-	f := filter(l, ps)
+	f := filter(l, ps, incl)
 
 	return len(f)
 }
 
-func containsHalfSpace(l *line, r [4]float64) bool {
-	amount := intersectsHalfSpaceAux(r, l)
+func containsHalfSpace(l *line, r [4]float64, incl bool) bool {
+	amount := intersectsHalfSpaceAux(r, l, incl)
 
 	return amount == 4
 }
