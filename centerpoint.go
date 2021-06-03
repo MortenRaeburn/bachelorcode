@@ -97,7 +97,7 @@ func centerpoint(ps [][2]float64) *center_res {
 }
 
 func main() {
-	// go bench5()
+	// bench5()
 	go bench4()
 	// go bench2()
 	go bench1()
@@ -105,6 +105,7 @@ func main() {
 }
 
 func bench4() {
+	fmt.Println("bench4")
 	rand.Seed(time.Now().UnixNano())
 
 	n := 0
@@ -197,105 +198,109 @@ func bench4() {
 	}
 }
 
-func bench2() {
-	rand.Seed(time.Now().UnixNano())
+// func bench2() {
+// 	fmt.Println("bench2")
+// 	rand.Seed(time.Now().UnixNano())
 
-	n := 0
-	f := 3
+// 	n := 0
+// 	f := 3
 
-	fs := []string{
-		"4.csv",
-	}
-	csvs := [][][]string{
-		{},
-	}
+// 	fs := []string{
+// 		"4.csv",
+// 	}
+// 	csvs := [][][]string{
+// 		{},
+// 	}
 
-	readCsvs(fs, &csvs)
+// 	readCsvs(fs, &csvs)
 
-	for {
-		SPY.reset()
+// 	for {
+// 		SPY.reset()
 
-		n = rand.Intn(199500) + 500
+// 		n = rand.Intn(199500) + 500
 
-		ps := GeneratePoints(n, 100)
+// 		ps := GeneratePoints(n, 100)
 
-		tree, _ := NewRTree(ps, f, sumOfSlice, one)
-		digest := tree.Digest
+// 		tree, _ := NewRTree(ps, f, sumOfSlice, one)
+// 		digest := tree.Digest
 
-		areaPs := GeneratePoints(2, 100)
+// 		areaPs := GeneratePoints(2, 100)
 
-		if areaPs[0][0] > areaPs[1][0] {
-			areaPs[0][0], areaPs[1][0] = areaPs[1][0], areaPs[0][0]
-		}
+// 		if areaPs[0][0] > areaPs[1][0] {
+// 			areaPs[0][0], areaPs[1][0] = areaPs[1][0], areaPs[0][0]
+// 		}
 
-		if areaPs[0][1] < areaPs[1][1] {
-			areaPs[0][0], areaPs[1][0] = areaPs[1][0], areaPs[0][0]
-		}
+// 		if areaPs[0][1] < areaPs[1][1] {
+// 			areaPs[0][0], areaPs[1][0] = areaPs[1][0], areaPs[0][0]
+// 		}
 
-		area := [4]float64{
-			areaPs[0][0],
-			areaPs[0][1],
-			areaPs[1][0],
-			areaPs[1][1],
-		}
+// 		area := [4]float64{
+// 			areaPs[0][0],
+// 			areaPs[0][1],
+// 			areaPs[1][0],
+// 			areaPs[1][1],
+// 		}
 
-		if !pointSearchArea(ps, area) {
-			continue
-		}
+// 		if !pointSearchArea(ps, area) {
+// 			continue
+// 		}
 
-		servStart := time.Now()
-		subsetVO := tree.AuthCountArea(area)
-		servTime := time.Since(servStart).Microseconds()
+// 		servStart := time.Now()
+// 		subsetVO := tree.AuthCountArea(area)
+// 		servTime := time.Since(servStart).Microseconds()
 
-		clientStart := time.Now()
-		if !verifyArea(area, subsetVO, digest, f) {
-			panic("Subset not valid")
-		}
-		clientTime := time.Since(clientStart).Milliseconds()
+// 		clientStart := time.Now()
+// 		if !verifyArea(area, subsetVO, digest, f) {
+// 			panic("Subset not valid")
+// 		}
+// 		clientTime := time.Since(clientStart).Milliseconds()
 
-		commonStart := time.Now()
-		tree = subsetAAR(subsetVO, f)
-		commonTime := time.Since(commonStart).Milliseconds()
+// 		commonStart := time.Now()
+// 		tree = subsetAAR(subsetVO, f)
+// 		commonTime := time.Since(commonStart).Milliseconds()
 
-		digest = tree.Digest
+// 		digest = tree.Digest
 
-		leaves := tree.List()
-		ps = [][2]float64{}
+// 		leaves := tree.List()
+// 		ps = [][2]float64{}
 
-		for _, l := range leaves {
-			p := [2]float64{
-				l.MBR[0],
-				l.MBR[1],
-			}
+// 		for _, l := range leaves {
+// 			p := [2]float64{
+// 				l.MBR[0],
+// 				l.MBR[1],
+// 			}
 
-			ps = append(ps, p)
-		}
+// 			ps = append(ps, p)
+// 		}
 
-		subAmount := len(ps)
+// 		subAmount := len(ps)
 
-		res4 := []string{
-			strconv.Itoa(n),
-			strconv.Itoa(f),
-			strconv.Itoa(subAmount),
-			fmt.Sprintf("%f", area[0]),
-			fmt.Sprintf("%f", area[1]),
-			fmt.Sprintf("%f", area[2]),
-			fmt.Sprintf("%f", area[3]),
-			strconv.FormatInt(servTime, 10),
-			strconv.FormatInt(clientTime, 10),
-			strconv.Itoa(len(subsetVO.Mcs)),
-			strconv.Itoa(len(subsetVO.Sib)),
-			strconv.FormatInt(commonTime, 10),
-		}
+// 		res4 := []string{
+// 			strconv.Itoa(n),
+// 			strconv.Itoa(f),
+// 			strconv.Itoa(subAmount),
+// 			fmt.Sprintf("%f", area[0]),
+// 			fmt.Sprintf("%f", area[1]),
+// 			fmt.Sprintf("%f", area[2]),
+// 			fmt.Sprintf("%f", area[3]),
+// 			strconv.FormatInt(servTime, 10),
+// 			strconv.FormatInt(clientTime, 10),
+// 			strconv.Itoa(len(subsetVO.Mcs)),
+// 			strconv.Itoa(len(subsetVO.Sib)),
+// 			strconv.FormatInt(commonTime, 10),
+// 		}
 
-		csvs[0] = append(csvs[0], res4)
+// 		csvs[0] = append(csvs[0], res4)
 
-		writeCsvs(fs, csvs)
-	}
-}
+// 		writeCsvs(fs, csvs)
+// 	}
+// }
 
 func bench5() {
+	fmt.Println("bench5")
+	fmt.Println("Loading roads...")
 	allPs := readFile("roads_mbrs.txt")
+	fmt.Println("Done loading roads!")
 
 	hs := make(map[[2]float64]struct{})
 
@@ -308,6 +313,7 @@ func bench5() {
 	for k := range hs {
 		allPs = append(allPs, k)
 	}
+	fmt.Println("Done dedup!")
 
 	rand.Seed(time.Now().UnixNano())
 
@@ -326,7 +332,7 @@ func bench5() {
 	var mem int64
 
 	for {
-		n = rand.Intn(49500) + 500
+		n = rand.Intn(9500) + 500
 
 		ps := [][2]float64{}
 		_allPs := allPs
@@ -444,6 +450,7 @@ func bench5() {
 }
 
 func bench1() {
+	fmt.Println("bench1")
 	rand.Seed(time.Now().UnixNano())
 
 	n := 0
@@ -481,28 +488,32 @@ func bench1() {
 
 		finalAmount := len(VO.Final)
 
-		// for i, pruneVO := range VO.Prunes {
-		// 	_ = i
+		for i, pruneVO := range VO.Prunes {
+			_ = i
 
-		// 	lMcs := pruneVO.LCount.Mcs
-		// 	lSib := pruneVO.LCount.Sib
+			lMcs := pruneVO.LCount.Mcs
+			lSib := pruneVO.LCount.Sib
 
-		// 	uMcs := pruneVO.UCount.Mcs
-		// 	uSib := pruneVO.UCount.Sib
+			uMcs := pruneVO.UCount.Mcs
+			uSib := pruneVO.UCount.Sib
 
-		// 	dMcs := pruneVO.DCount.Mcs
-		// 	dSib := pruneVO.DCount.Sib
+			dMcs := pruneVO.DCount.Mcs
+			dSib := pruneVO.DCount.Sib
 
-		// 	rMcs := pruneVO.RCount.Mcs
-		// 	rSib := pruneVO.RCount.Sib
+			rMcs := pruneVO.RCount.Mcs
+			rSib := pruneVO.RCount.Sib
 
-		// 	mem += int64(len(lMcs) + len(lSib) + len(uMcs) + len(uSib) + len(dMcs) + len(dSib) + len(rMcs) + len(rSib))
+			pMcs := pruneVO.Prune.Mcs
+			pSib := pruneVO.Prune.Sib
 
-		// 	n := 0
+			mem += int64(len(lMcs) + len(lSib) + len(uMcs) + len(uSib) + len(dMcs) + len(dSib) + len(rMcs) + len(rSib) + len(pMcs) + len(pSib))
+		}
 
-		// 	for _, node := range append(lMcs, lSib...) {
-		// 		n += node.Value
-		// 	}
+		// n := 0
+
+		// for _, node := range append(lMcs, lSib...) {
+		// 	n += node.Value
+		// }
 
 		// res2 := []string{
 		// 	strconv.Itoa(n),
