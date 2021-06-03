@@ -6,7 +6,7 @@ import matplotlib.dates as mdates
 import numpy as np
 
 
-headers = ['in_size','fanout','oracle_time','Server runtime','Client runtime','VO size','final_amout']
+headers = ['in_size','fanout','oracle_time','server_time','Client runtime','VO size','final_amout', 'Server runtime']
 subset_headers = ['in_size', 'fanout', 'subset_size', 'x1', 'y1', 'x2', 'y2', 'Server runtime', 'Client runtime', 'mcs_size', 'sib_size', 'Common time', 'VO size', 'switch']
 
 def PolyCoefficients(x, coeffs):
@@ -171,10 +171,13 @@ if __name__ == '__main__':
     worlddf = pd.read_csv("6.csv", names = headers, nrows = 500)
 
     subdf['VO size'] = subdf.apply(lambda row: row.mcs_size + row.sib_size, axis=1)
+    df['Server runtime'] = df.apply(lambda row: row.oracle_time + row.server_time, axis=1)
+    worlddf['Server runtime'] = worlddf.apply(lambda row: row.oracle_time + row.server_time, axis=1)
+
 
     #center experiments:
-    compare_fanouts(df, 'Client runtime', 'ms', 1)
-    compare_fanouts(df, 'Server runtime', 'ms', 1)
+    compare_fanouts(df, 'Client runtime', 'ms', 'nlogn')
+    compare_fanouts(df, 'Server runtime', 'ms', 'nlogn')
     compare_fanouts(df, 'VO size', '# of nodes', 1)
 
 
