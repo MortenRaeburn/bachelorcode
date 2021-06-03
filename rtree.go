@@ -643,17 +643,7 @@ func divideByLabel(ns []*Node) map[int][]*Node {
 }
 
 func intersectsArea(x, y [4]float64) bool {
-	x[0] -= eps
-	x[1] += eps
-	x[2] += eps
-	x[3] -= eps
-
-	y[0] -= eps
-	y[1] += eps
-	y[2] += eps
-	y[3] -= eps
-
-	return x[0] < y[2] && x[2] > y[0] && x[3] < y[1] && x[1] > y[3] // Proof by contradiction, any of these cases mean that x and y cannot intersect; so if none exist, then they intersect: https://stackoverflow.com/a/306332
+	return x[0] <= y[2] && x[2] >= y[0] && x[3] <= y[1] && x[1] >= y[3] // Proof by contradiction, any of these cases mean that x and y cannot intersect; so if none exist, then they intersect: https://stackoverflow.com/a/306332
 }
 
 func containsArea(outer, inner [4]float64) bool {
