@@ -463,7 +463,7 @@ func bench1() {
 	var mem int64
 
 	for {
-		n = rand.Intn(4500) + 500
+		n = rand.Intn(49500) + 500
 
 		SPY.reset()
 
