@@ -45,8 +45,8 @@ def compare_fanouts(df, header, unit, deg):
         p2 = np.poly1d(z2)
         l2 = np.linspace(1, x2.max(), 1000)
 
-        plt.plot(l1, p1(l1 * np.log(l1)), "b", label = "Poly fit, fanout = 3")
-        plt.plot(l2, p2(l2 * np.log(l2)), "r", label= "Poly fit, fanout = 9")
+        plt.plot(l1, p1(l1 * np.log(l1)), "b", label = "Poly. fit, fanout = 3")
+        plt.plot(l2, p2(l2 * np.log(l2)), "r", label= "Poly. fit, fanout = 9")
     else:
         z1 = np.polyfit(x1, y1, deg)
         p1 = np.poly1d(z1)
@@ -57,13 +57,14 @@ def compare_fanouts(df, header, unit, deg):
         p2 = np.poly1d(z2)
         l2 = np.linspace(0, x2.to_numpy().max(), 1000)
 
-        plt.plot(l1, p1(l1), "b", label = "Poly fit, fanout = 3")
-        plt.plot(l2, p2(l2), "r", label= "Poly fit, fanout = 9")
+        plt.plot(l1, p1(l1), "b", label = "Poly. fit, fanout = 3")
+        plt.plot(l2, p2(l2), "r", label= "Poly. fit, fanout = 9")
 
-    axs.set_xlabel('Input size (# of points)')
-    axs.set_ylabel(header+" ("+unit+")")
+    plt.tick_params(labelsize=14)
+    axs.set_xlabel('Input size (# of points)', fontsize='large')
+    axs.set_ylabel(header+" ("+unit+")", fontsize='large')
     plt.grid(True)
-    plt.legend()
+    plt.legend(fontsize='large')
     plt.savefig(header+"_f3vsf9.eps", format = 'eps')
     plt.savefig(header+"_f3vsf9.png")
     plt.clf()
@@ -105,11 +106,13 @@ def compare_areas(df, header, unit, deg, fun):
         plt.plot(l2, p2(l2), "r", label= fun+ " fit, area = 6.25% of total")
 
     
-    
-    axs.set_xlabel('Input size (# of points)')
-    axs.set_ylabel(header+" ("+unit+")")
+    plt.tick_params(labelsize=14)
+    plt.tick_params(axis='x', rotation=30)
+
+    axs.set_xlabel('Input size (# of points)', fontsize='large')
+    axs.set_ylabel(header+" ("+unit+")", fontsize='large')
     plt.grid(True)
-    plt.legend()
+    plt.legend(fontsize='large')
     plt.savefig(header+"_largevssmall.eps", format = 'eps')
     plt.savefig(header+"_largevssmall.png")
     plt.clf()
@@ -131,14 +134,16 @@ def read_world_data(df):
     p2 = np.poly1d(z2)
     l2 = np.linspace(1, x2.max(), 1000)
 
+    plt.tick_params(labelsize=14)
+
     axs.plot(x1,y1, 'bo', label='Server runtime')
     axs.plot(x2,y2, 'r+', label='Client runtime')
     plt.plot(l1, p1(l1), "b", label= "Poly. fit, server runtime")
     plt.plot(l2, p2(l2 * np.log(l2)), "r", label= "Poly. fit, client runtime")
-    axs.set_xlabel('Subset size (# of points)')
-    axs.set_ylabel("Runtime (ms)")
+    axs.set_xlabel('Subset size (# of points)', fontsize='large')
+    axs.set_ylabel("Runtime (ms)", fontsize='large')
     plt.grid(True)
-    plt.legend()
+    plt.legend(fontsize='large')
     plt.savefig("world_data.eps")
     plt.savefig("world_data.png")
     plt.clf()
@@ -176,15 +181,15 @@ if __name__ == '__main__':
 
 
     #center experiments:
-    compare_fanouts(df, 'Client runtime', 'ms', 'nlogn')
-    compare_fanouts(df, 'Server runtime', 'ms', 'nlogn')
+    compare_fanouts(df, 'Client runtime', 'ms', 2)
+    compare_fanouts(df, 'Server runtime', 'ms', 2)
     compare_fanouts(df, 'VO size', '# of nodes', 1)
 
 
 
     #subset experiments:
     compare_areas(subdf, 'Client runtime', 'ms', 1, "Poly.")
-    compare_areas(subdf, 'Server runtime', 'ms', 1, "Linear")
+    compare_areas(subdf, 'Server runtime', 'ms', 1, "Poly.")
     #compare_areas(subdf, 'VO size', '# of nodes', 1) sth wrong here
     compare_areas(subdf, 'Common time', 'ms', 1, "Linear") 
 
